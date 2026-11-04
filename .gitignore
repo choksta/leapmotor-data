@@ -1,0 +1,39 @@
+# Gradle / Android
+.gradle/
+build/
+.kotlin/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.DS_Store
+
+# 账号与凭证：绝不能进仓库
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+keystore.properties
+secrets.properties
+session*.json
+session*.bin
+s*.json
+app_session*.json
+*.db
+*.sqlite
+*.sqlite3
+
+# 日志与临时产物
+*.log
+*.hprof
