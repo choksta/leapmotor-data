@@ -34,7 +34,7 @@ Jetpack Compose，Material 3 Expressive。62sp 细字重主数字、波浪进度
 需要 JDK 17、Android SDK 36。
 
 ```bash
-git clone https://github.com/<your-name>/leapmotor-data.git
+git clone https://github.com/choksta/leapmotor-data.git
 cd leapmotor-data
 ./gradlew assembleDebug
 ```
