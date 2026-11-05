@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -89,6 +90,14 @@ class MainActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
             window.isStatusBarContrastEnforced = false
         }
+        // Android 13+ 通知需要运行时授权。拿不到只是没有充电通知，
+        // 其它功能不受影响，所以只请求一次、不阻塞启动。
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 100)
+        }
         setContent {
             AppTheme {
                 // 铺满整屏（含系统栏），否则系统栏区域露出 Window 默认白底，
@@ -107,6 +116,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AppRoot(vm: MainViewModel = viewModel()) {
     var tab by remember { mutableIntStateOf(0) }
+    var showUpdate by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(vm.message) {
@@ -138,7 +148,11 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
     androidx.compose.runtime.DisposableEffect(lifecycleOwner, vm.loggedIn) {
         val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
-                androidx.lifecycle.Lifecycle.Event.ON_START -> vm.startPolling()
+                androidx.lifecycle.Lifecycle.Event.ON_START -> {
+                    vm.startPolling()
+                    // 回到前台时再看一眼是否到达检查间隔（长期挂后台不会自己计时）
+                    vm.maybeCheckUpdate()
+                }
                 androidx.lifecycle.Lifecycle.Event.ON_STOP -> vm.stopPolling()
                 else -> {}
             }
@@ -243,15 +257,20 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
                                 pendingAcOn = vm.pendingAcOn,
                                 pendingLock = vm.pendingLock,
                                 chargeSoc = vm.chargeSoc,
-                    cmdLog = vm.cmdLog,
-                    cmdLogPath = vm.cmdLogPath,
+                                cmdLog = vm.cmdLog,
+                                cmdLogPath = vm.cmdLogPath,
                                 chargeBusy = vm.chargeBusy,
                                 onSetChargeSoc = vm::applyChargeSoc,
                                 onLoadChargePlan = vm::loadChargePlan,
                                 onSavePin = vm::savePin,
                                 onSend = vm::sendCommand,
                                 topInset = listTop,
-                                bottomInset = listBottom
+                                bottomInset = listBottom,
+                                versionName = vm.currentVersion,
+                                updateHint = if (vm.updateAvailable) {
+                                    "有新版本 " + (vm.latestRelease?.version ?: "") + "，点我查看"
+                                } else "",
+                                onOpenUpdate = { showUpdate = true }
                             )
                         }
                     }
@@ -268,6 +287,10 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
                     .padding(bottom = capsuleBottom)
             )
         }
+    }
+
+    if (showUpdate) {
+        com.haojay.leapmotor.ui.UpdateDialog(vm) { showUpdate = false }
     }
 }
 

@@ -106,6 +106,9 @@ fun ControlScreen(
     onSend: (Int, Map<String, Any?>) -> Unit,
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
     bottomInset: androidx.compose.ui.unit.Dp = 96.dp,
+    versionName: String = "",
+    updateHint: String = "",
+    onOpenUpdate: () -> Unit = {},
 ) {
     var pending by remember { mutableStateOf<Act?>(null) }
     var pinInput by remember { mutableStateOf("") }
@@ -273,6 +276,7 @@ fun ControlScreen(
         }
 
         item { CmdLogCard(cmdLog, cmdLogPath) }
+        item { UpdateEntry(versionName, updateHint, onOpenUpdate) }
     }
 
     pending?.let { a ->
@@ -714,6 +718,48 @@ private fun CmdLogCard(log: List<CmdLog.Entry>, path: String) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
+        }
+    }
+}
+
+/**
+ * 底部「版本 / 检查更新」入口。
+ *
+ * 放在控制页最末，因为它是低频设置项；但也在同一屏，不用翻设置页。
+ */
+@Composable
+private fun UpdateEntry(versionName: String, hint: String, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "版本 " + versionName.ifEmpty { "?" },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    hint.ifEmpty { "检查更新" },
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = if (hint.isNotEmpty()) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                "›",
+                fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

@@ -6,8 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.haojay.leapmotor.data.AppRelease
 import com.haojay.leapmotor.data.AuthManager
 import com.haojay.leapmotor.data.CarSnapshot
+import com.haojay.leapmotor.data.ChargeLiveService
 import com.haojay.leapmotor.data.CmdLog
 import com.haojay.leapmotor.data.LpSession
 import com.haojay.leapmotor.data.Poller
@@ -15,6 +17,7 @@ import com.haojay.leapmotor.data.Repo
 import com.haojay.leapmotor.data.SessionStore
 import com.haojay.leapmotor.data.SettingsStore
 import com.haojay.leapmotor.data.TrendData
+import com.haojay.leapmotor.data.UpdateChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -79,6 +82,85 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** 账本文件路径，方便 adb 直接读取核对。 */
     val cmdLogPath: String get() = CmdLog.path(ctx)
 
+    // ---------------- 检查更新 ----------------
+    // 这段必须放在 init 之前：Kotlin 按声明顺序初始化属性，放后面的话
+    // init 里读 hasUpdateToken 会拿到默认 false。
+
+    /** 当前安装的版本号。 */
+    val currentVersion: String = runCatching {
+        ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: "?"
+    }.getOrDefault("?")
+
+    var updateChecking by mutableStateOf(false)
+        private set
+
+    /** 最新 release；null 表示还没查过。 */
+    var latestRelease by mutableStateOf<AppRelease?>(null)
+        private set
+
+    var updateError by mutableStateOf<String?>(null)
+        private set
+
+    var updateIntervalH by mutableStateOf(SettingsStore.getIntervalHours(app))
+        private set
+
+    var lastCheckAt by mutableStateOf(SettingsStore.getLastCheckAt(app))
+        private set
+
+    /** 是否配了只读令牌。写入时同步，不在 getter 里解密。 */
+    var hasUpdateToken by mutableStateOf(!SettingsStore.getUpdateToken(app).isNullOrBlank())
+        private set
+
+    val updateAvailable: Boolean
+        get() = latestRelease?.let { UpdateChecker.compare(it.version, currentVersion) > 0 } == true
+
+    /**
+     * 到点才查：距上次**成功**检查不足间隔就跳过。
+     *
+     * 没有令牌时直接返回——私有仓库匿名请求必然 404，每次启动刷一遍错误提示只会让人困惑。
+     */
+    fun maybeCheckUpdate() {
+        if (!hasUpdateToken) return
+        val last = SettingsStore.getLastCheckAt(ctx)
+        if (last > 0 && System.currentTimeMillis() - last < updateIntervalH * 3_600_000L) return
+        checkUpdate()
+    }
+
+    /** 立即检查，忽略间隔。 */
+    fun checkUpdate() {
+        if (updateChecking) return
+        updateChecking = true
+        updateError = null
+        viewModelScope.launch {
+            val token = SettingsStore.getUpdateToken(ctx)
+            val r = withContext(Dispatchers.IO) { UpdateChecker.fetchLatest(token) }
+            r.onSuccess {
+                latestRelease = it
+                SettingsStore.setLastCheckAt(ctx, System.currentTimeMillis())
+                lastCheckAt = SettingsStore.getLastCheckAt(ctx)
+            }.onFailure {
+                updateError = it.message ?: "检查失败"
+            }
+            updateChecking = false
+        }
+    }
+
+    fun setUpdateInterval(hours: Long) {
+        SettingsStore.setIntervalHours(ctx, hours)
+        updateIntervalH = hours
+        // 改间隔后重新算一次是否到期，否则要等下次启动才生效
+        maybeCheckUpdate()
+    }
+
+    fun saveUpdateToken(token: String) {
+        SettingsStore.setUpdateToken(ctx, token)
+        hasUpdateToken = token.isNotBlank()
+        updateError = null
+        latestRelease = null
+        message = if (token.isBlank()) "已清除更新令牌" else "令牌已保存"
+        if (token.isNotBlank()) checkUpdate()
+    }
+
     // ---- 登录态 ----
     var loginBusy by mutableStateOf(false)
         private set
@@ -93,6 +175,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         loggedIn = s != null
         reloadCmdLog()
         if (s != null) refreshSnapshot()
+        maybeCheckUpdate()
     }
 
     val hasPin: Boolean get() = !session?.operatePwd.isNullOrEmpty()
@@ -122,8 +205,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // 否则下完指令界面要等下一轮手动刷新才变。
             snapshot = tick.snapshot
             error = null
+            syncChargeLive(tick.snapshot)
         }
         polling = true
+    }
+
+    // ---------------- 充电实时通知 ----------------
+
+    private var chargeLiveOn = false
+
+    /**
+     * 插枪/拔枪时启停前台服务。
+     *
+     * 只在翻转那一刻动一次：服务自己负责后续轮询，App 退到后台也不受影响。
+     * App 重启后 [chargeLiveOn] 归 false，会重复调一次 start —— 服务是幂等的，无害。
+     */
+    private fun syncChargeLive(s: CarSnapshot?) {
+        val plugged = s?.plugged == true
+        if (plugged == chargeLiveOn) return
+        chargeLiveOn = plugged
+        if (plugged) ChargeLiveService.start(ctx) else ChargeLiveService.stop(ctx)
     }
 
     /** 后台：停止刷新。 */
@@ -213,7 +314,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val r = withContext(Dispatchers.IO) {
                 runCatching { withAuthRetry(sess) { repo.fetchSnapshot(it) } }
             }
-            r.onSuccess { snapshot = it; error = null }
+            r.onSuccess { snapshot = it; error = null; syncChargeLive(it) }
                 .onFailure {
                     val msg = it.message ?: "刷新失败"
                     error = msg

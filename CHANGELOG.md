@@ -1,5 +1,42 @@
 # 更新日志
 
+## 0.4.0 — 2026-11-05
+
+两个功能：充电时把状态推上系统的实时活动（流体云 / 超级岛），以及 App 内的检查更新。
+
+### 新增
+
+- **充电实时通知**。插枪时起前台服务，用 Android 16 原生 Live Updates 在状态栏显示电量与预计充满时间。拔枪即停。
+  - 走标准 API：`ProgressStyle` + `setRequestPromotedOngoing` + `POST_PROMOTED_NOTIFICATIONS`
+  - **不需要厂商白名单**。ColorOS 16 起流体云直接吃原生 Live Updates，HyperOS 渲染成超级岛，不认这套 API 的系统退化成普通常驻通知
+  - 前台服务类型 `dataSync`，Android 15+ 有 6 小时上限，慢充过夜可能被系统掐断（已知取舍）
+- **检查更新**。读 GitHub Releases 比对版本号，间隔可选 6 小时 / 3 天 / 7 天，默认 6 小时；改间隔后立即重算是否到期。仓库私有，匿名 API 返回 404，所以支持配一个只读令牌（Keystore 加密，与零跑凭证隔离）。没配也能打开 Release 页手动下载。
+
+### 变更
+
+- `androidx.core` 1.15.0 → 1.17.0（`ProgressStyle` / `setShortCriticalText` / `setRequestPromotedOngoing` 需要 1.16+）
+- 控制页底部新增「版本」入口，点开是检查更新对话框
+
+### 实测
+
+在 Redmi M332BF（Android 17 / HyperOS 4）上验证：
+
+```
+flags=ONGOING_EVENT|ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE|PROMOTED_ONGOING|SILENT
+android.title=充电中 · 62%
+android.text=预计 28 分钟 充满 · 续航 310 km
+android.progress=62
+```
+
+`PROMOTED_ONGOING` 出现在系统标志里，说明提升请求被接受；状态栏渲染为黑色胶囊（闪电图标 + 短文本），通知面板里是独立样式的常驻卡片带分段进度条。
+
+### 已知问题
+
+- 检查更新的成功路径依赖只读令牌，配了才能验证；未配时只验证了 404 的错误提示
+- 服务只在插枪后启动，若长期插枪不充（预约充电），通知会停留在「已插枪」
+
+---
+
 ## 0.3.0 — 2026-11-05
 
 重心从「采样记录」转回「看车态 + 控车」。删掉本地采样与行程记录，车控改成观察目标字段是否真的达成，每条指令落盘可核对；界面统一到 M3 Expressive 令牌，配色做成可切换的三套。

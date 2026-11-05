@@ -4,6 +4,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- 充电实时通知。POST_PROMOTED_NOTIFICATIONS 是 Android 16 起才有的
+         非运行时权限，用来请求把通知提升为实时活动（ColorOS 流体云 / 小米超级岛）。 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_app"
@@ -22,6 +29,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 只在充电时启动：拔枪即自行停止。type 用 dataSync，
+             Android 14+ 必须显式声明，否则 startForeground 直接抛异常。 -->
+        <service
+            android:name=".data.ChargeLiveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
     </application>
 
