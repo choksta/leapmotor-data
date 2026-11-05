@@ -40,6 +40,20 @@ class Repo(private val ctx: Context) {
         return CarSnapshot(m, st, data.optLong("collectTime"))
     }
 
+    /**
+     * 驻车照片。
+     *
+     * 只读接口，返回 `data.fileUrl`（OSS 签名地址）与 `data.uploadTime`。
+     * 空字符串表示这辆车/这个时间没有照片——哨兵抓拍才有，不是每次驻车都有。
+     */
+    fun fetchParkingPhoto(sess: LpSession): ParkingPhoto? {
+        val vin = sess.vin ?: resolveVin(sess)
+        val resp = api(sess).carCall("v3/api/chassis/query", mapOf("vin" to vin))
+        val data = resp.optJSONObject("data") ?: return null
+        val url = data.optString("fileUrl").takeIf { it.startsWith("http") } ?: return null
+        return ParkingPhoto(url, data.optLong("uploadTime"))
+    }
+
     // ---------------- 趋势 ----------------
 
     fun fetchTrend(sess: LpSession, days: Int = 30): TrendData {

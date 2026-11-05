@@ -14,6 +14,7 @@ import com.haojay.leapmotor.data.CmdLog
 import com.haojay.leapmotor.data.LpSession
 import com.haojay.leapmotor.data.Poller
 import com.haojay.leapmotor.data.Repo
+import com.haojay.leapmotor.data.RemoteImage
 import com.haojay.leapmotor.data.SessionStore
 import com.haojay.leapmotor.data.SettingsStore
 import com.haojay.leapmotor.data.TrendData
@@ -338,6 +339,69 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             loadingSnapshot = false
         }
+    }
+
+    // ---------------- 驻车照片 ----------------
+    //
+    // 懒加载：只有用户点「查看」才去取地址、才下载。
+    // 这图只在哨兵抓拍后才有，每次进页面都拉一遍既慢又白费流量。
+
+    var parkingPhoto by mutableStateOf<android.graphics.Bitmap?>(null)
+        private set
+    var parkingPhotoAt by mutableStateOf(0L)
+        private set
+    var parkingPhotoLoading by mutableStateOf(false)
+        private set
+    var parkingPhotoError by mutableStateOf<String?>(null)
+        private set
+
+    fun loadParkingPhoto() {
+        val sess = session
+        if (sess == null) {
+            parkingPhotoError = "未登录"
+            return
+        }
+        if (parkingPhotoLoading) return
+        parkingPhotoLoading = true
+        parkingPhotoError = null
+        viewModelScope.launch {
+            val photo = withContext(Dispatchers.IO) {
+                runCatching { withAuthRetry(sess) { repo.fetchParkingPhoto(it) } }.getOrNull()
+            }
+            if (photo == null) {
+                parkingPhotoError = "这辆车当前没有驻车照片"
+                parkingPhotoLoading = false
+                return@launch
+            }
+            val bmp = withContext(Dispatchers.IO) {
+                runCatching { RemoteImage.load(photo.url) }.getOrNull()
+            }
+            if (bmp == null) {
+                parkingPhotoError = "照片下载失败，可能是链接已过期"
+            } else {
+                parkingPhoto = bmp
+                parkingPhotoAt = photo.uploadTimeMs
+            }
+            parkingPhotoLoading = false
+        }
+    }
+
+    // ---------------- 坐标系校正 ----------------
+
+    /**
+     * 高德是否按 WGS-84 取值。
+     *
+     * 车端 `2/3` 标称 GCJ-02，高德底图也是 GCJ-02，理论上直接喂就行。
+     * 但实测有人在某些机型上看到落点偏约 600 米——正好是一个坐标系偏移的量级。
+     * 与其猜，不如留一个开关：偏了就切一下，立刻能对上。
+     */
+    var mapUseWgs by mutableStateOf(SettingsStore.getMapUseWgs(app))
+        private set
+
+    fun toggleMapDatum() {
+        val next = !mapUseWgs
+        SettingsStore.setMapUseWgs(ctx, next)
+        mapUseWgs = next
     }
 
     fun refreshTrend() {

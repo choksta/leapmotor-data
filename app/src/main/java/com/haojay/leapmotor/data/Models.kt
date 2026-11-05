@@ -43,9 +43,7 @@ data class CarSnapshot(
 data class DailyPoint(val day: String, val mileage: Double, val energy: Double)
 
 /** 某周百公里能耗。 */
-data class WeeklyEc(val start: String, val end: String, val ec: Double)
-
-/** 上周能耗拆分（kWh）。 */
+data class WeeklyEc(val start: String, val end: String, val ec: Double)/** 上周能耗拆分（kWh）。 */
 data class WeekBreakdown(val driver: Double, val ac: Double, val other: Double) {
     val total: Double get() = driver + ac + other
 }
@@ -91,3 +89,14 @@ data class TrendData(
     val activeDays: Int get() = daily.count { it.mileage > 0 }
     val maxDailyMileage: Double get() = daily.maxOfOrNull { it.mileage } ?: 0.0
 }
+
+/**
+ * 驻车照片。
+ *
+ * `fileUrl` 是 OSS 直传的**签名地址**（带 Expires 与 Signature），路径里含 VIN，
+ * 所以只在本机内存里用，不写盘、不进日志。
+ */
+data class ParkingPhoto(
+    val url: String,
+    val uploadTimeMs: Long,
+)

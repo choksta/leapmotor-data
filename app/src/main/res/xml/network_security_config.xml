@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  只给 OSS 图床放行明文 http。
+
+  驻车照片的 fileUrl 是 http 的签名地址（OSS V1 签名不含协议，所以 https 也能过，
+  代码里先试 https）。这里留一条 http 兜底，范围只限这一个域名，
+  不要改成 application 级 usesCleartextTraffic —— 那等于给全 App 放开明文。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">lp-carnet.oss-cn-hangzhou.aliyuncs.com</domain>
+    </domain-config>
+</network-security-config>

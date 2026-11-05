@@ -245,7 +245,14 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
                                 onRefresh = vm::refreshSnapshot,
                                 onLogout = vm::logout,
                                 topInset = listTop,
-                                bottomInset = listBottom
+                                bottomInset = listBottom,
+                                mapUseWgs = vm.mapUseWgs,
+                                onToggleDatum = vm::toggleMapDatum,
+                                parkingPhoto = vm.parkingPhoto,
+                                parkingPhotoAt = vm.parkingPhotoAt,
+                                parkingPhotoLoading = vm.parkingPhotoLoading,
+                                parkingPhotoError = vm.parkingPhotoError,
+                                onLoadParkingPhoto = vm::loadParkingPhoto
                             )
                             1 -> TrendScreen(
                                 trend = vm.trend,

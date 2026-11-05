@@ -22,6 +22,7 @@ object SettingsStore {
     private const val KEY_CHECK_INTERVAL = "update_interval_h"
     private const val KEY_LAST_CHECK = "update_last_check"
     private const val KEY_MONITOR = "background_monitor"
+    private const val KEY_MAP_WGS = "map_use_wgs"
     private const val ENC_PREFIX = "enc:"
 
     /** 默认每 6 小时查一次更新。 */
@@ -118,5 +119,14 @@ object SettingsStore {
 
     fun setMonitorOn(ctx: Context, on: Boolean) {
         sp(ctx).edit().putBoolean(KEY_MONITOR, on).apply()
+    }
+
+    // ---------------- 地图坐标基准 ----------------
+
+    /** 高德跳转是否改用 WGS-84。默认 false（车端信号本身就是 GCJ-02）。 */
+    fun getMapUseWgs(ctx: Context): Boolean = sp(ctx).getBoolean(KEY_MAP_WGS, false)
+
+    fun setMapUseWgs(ctx: Context, wgs: Boolean) {
+        sp(ctx).edit().putBoolean(KEY_MAP_WGS, wgs).apply()
     }
 }

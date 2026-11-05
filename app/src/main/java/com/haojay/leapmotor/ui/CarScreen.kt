@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +29,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -117,6 +120,14 @@ fun CarScreen(
     onLogout: () -> Unit = {},
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
     bottomInset: androidx.compose.ui.unit.Dp = 96.dp,
+    /** 高德是否按 WGS-84 取值（坐标校正开关）。 */
+    mapUseWgs: Boolean = false,
+    onToggleDatum: () -> Unit = {},
+    parkingPhoto: android.graphics.Bitmap? = null,
+    parkingPhotoAt: Long = 0L,
+    parkingPhotoLoading: Boolean = false,
+    parkingPhotoError: String? = null,
+    onLoadParkingPhoto: () -> Unit = {},
 ) {
     if (snap == null) {
         Column(
@@ -252,7 +263,16 @@ fun CarScreen(
             MergedSection {
                 CabinCard(snap, bare = true)
                 SectionDivider()
-                LocationCard(snap, bare = true)
+                LocationCard(snap, bare = true, mapUseWgs = mapUseWgs, onToggleDatum = onToggleDatum)
+                SectionDivider()
+                ParkingPhotoCard(
+                    photo = parkingPhoto,
+                    uploadAt = parkingPhotoAt,
+                    loading = parkingPhotoLoading,
+                    error = parkingPhotoError,
+                    onLoad = onLoadParkingPhoto,
+                    bare = true
+                )
             }
         }
 
@@ -1306,24 +1326,149 @@ private fun ComfortChip(label: String, on: Boolean, modifier: Modifier = Modifie
 }
 
 /**
- * 车辆位置：坐标 + 一键跳高德。
+ * 驻车照片。
  *
- * 车端信号 2/3 是 **GCJ-02**（火星坐标），与高德底图同一基准，
- * 直接传给高德即可精确落点，不需要 WGS-84 转换。
+ * 图来自 `GET /v3/api/chassis/query` 返回的 OSS 签名地址——只有哨兵抓拍过才有，
+ * 不是每次驻车都有。所以默认只放一个入口按钮，点了才去取地址和下载，
+ * 避免每次进页面都白拉一张几 MB 的图。
  */
+@Composable
+private fun ParkingPhotoCard(
+    photo: android.graphics.Bitmap?,
+    uploadAt: Long,
+    loading: Boolean,
+    error: String?,
+    onLoad: () -> Unit,
+    bare: Boolean = false,
+) {
+    var zoom by remember { mutableStateOf(false) }
+
+    if (zoom && photo != null) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { zoom = false }) {
+            Card(
+                shape = MaterialTheme.shapes.large,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+            ) {
+                Column(Modifier.padding(12.dp)) {
+                    androidx.compose.foundation.Image(
+                        bitmap = photo.asImageBitmap(),
+                        contentDescription = "驻车照片",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (uploadAt > 0) "拍摄于 " + fmtTime(uploadAt) else "驻车照片",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        androidx.compose.material3.TextButton(onClick = { zoom = false }) {
+                            Text("关闭")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    BodyContainer(bare) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "驻车照片",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.6.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                if (uploadAt > 0) {
+                    Text(
+                        fmtTime(uploadAt),
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+
+            when {
+                photo != null -> {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 240.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { zoom = true }
+                    ) {
+                        androidx.compose.foundation.Image(
+                            bitmap = photo.asImageBitmap(),
+                            contentDescription = "驻车照片，点击放大",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "点击图片放大",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.LoadingIndicator(
+                        modifier = Modifier.size(14.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("正在获取照片…", fontSize = 14.sp)
+                }
+                else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    MapButton("查看驻车照片", Modifier.weight(1f), secondary = true) { onLoad() }
+                }
+            }
+
+            if (error != null && photo == null && !loading) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    error,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
 /**
  * 车辆位置：优先显示可读地址，坐标降为辅助信息。
  *
- * 逆地理编码用系统 [android.location.Geocoder]（免费、无需 API Key）。
- * 它有网络依赖且部分 ROM 可能不可用，所以解析失败时回落显示坐标，
- * 不让这块变成空白。
+ * 三个坐标系不要再混：
+ * - 车端 `2/3` 是 **GCJ-02**
+ * - 高德底图也是 GCJ-02 → 直接给
+ * - 系统 `Geocoder` 和 `geo:` 协议要 **WGS-84** → 先转再给
+ *
+ * 之前直接把 GCJ 喂给 Geocoder，地址会整体偏 600 米——不报错，只是把你指到隔壁小区。
  */
 @Composable
-private fun LocationCard(snap: CarSnapshot, bare: Boolean = false) {
+private fun LocationCard(
+    snap: CarSnapshot,
+    bare: Boolean = false,
+    mapUseWgs: Boolean = false,
+    onToggleDatum: () -> Unit = {},
+) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val lat = snap.d("latitude")
     val lon = snap.d("longitude")
     val valid = lat != null && lon != null && lat != 0.0 && lon != 0.0
+
+    // 车端值（GCJ-02）与换算出的 WGS-84，两套都留一份：
+    // 地址解析与 geo: 用 WGS，高德用 GCJ（除非用户在校正里切过）
+    val wgs = if (valid) com.haojay.leapmotor.data.Geo.gcjToWgs(lon!!, lat!!) else null
+    val wgsLon = wgs?.first
+    val wgsLat = wgs?.second
 
     var address by remember { mutableStateOf<String?>(null) }
     var resolving by remember { mutableStateOf(false) }
@@ -1332,7 +1477,8 @@ private fun LocationCard(snap: CarSnapshot, bare: Boolean = false) {
         if (!valid) return@LaunchedEffect
         resolving = true
         address = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            reverseGeocode(ctx, lat!!, lon!!)
+            // Geocoder 要 WGS-84，传换算后的值
+            reverseGeocode(ctx, wgsLat!!, wgsLon!!)
         }
         resolving = false
     }
@@ -1371,8 +1517,10 @@ private fun LocationCard(snap: CarSnapshot, bare: Boolean = false) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(4.dp))
+                    // 显示的坐标跟跳转时用的保持一致，免得"界面上一个数、地图上是另一个点"
                     Text(
-                        "%.5f, %.5f · GCJ-02".format(lat, lon),
+                        if (mapUseWgs) "WGS-84  %.5f, %.5f".format(wgsLat, wgsLon)
+                        else "GCJ-02  %.5f, %.5f".format(lat, lon),
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1406,11 +1554,34 @@ private fun LocationCard(snap: CarSnapshot, bare: Boolean = false) {
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MapButton("高德地图", Modifier.weight(1f)) {
-                        openMap(ctx, lat!!, lon!!, "零跑 B01", amap = true)
+                        // 高德要 GCJ；只有用户在校正里切过才改用 WGS
+                        val la = if (mapUseWgs) wgsLat!! else lat!!
+                        val lo = if (mapUseWgs) wgsLon!! else lon!!
+                        openMap(ctx, la, lo, "LeapCo 车辆位置", amap = true)
                     }
                     MapButton("其他地图", Modifier.weight(1f), secondary = true) {
-                        openMap(ctx, lat!!, lon!!, "零跑 B01", amap = false)
+                        // geo: 协议是 WGS-84，系统地图按 WGS 摆点
+                        openMap(ctx, wgsLat!!, wgsLon!!, "LeapCo 车辆位置", amap = false)
                     }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (mapUseWgs) "高德按 WGS-84 取值，与系统地图同一套"
+                        else "高德按 GCJ-02 取值，与车端信号同一套",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        if (mapUseWgs) "改回 GCJ-02" else "改成 WGS-84",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clickable { onToggleDatum() }
+                            .padding(start = 8.dp, top = 6.dp, bottom = 6.dp)
+                    )
                 }
             }
         }
