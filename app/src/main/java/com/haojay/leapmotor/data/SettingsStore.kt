@@ -18,7 +18,6 @@ object SettingsStore {
     private const val FILE = "leapmotor_prefs"
     private const val KEY_PIN = "operate_pin"
     private const val KEY_DEVICE_ID = "device_id"
-    private const val KEY_UPDATE_TOKEN = "update_token"
     private const val KEY_CHECK_INTERVAL = "update_interval_h"
     private const val KEY_LAST_CHECK = "update_last_check"
     private const val KEY_MONITOR = "background_monitor"
@@ -67,30 +66,6 @@ object SettingsStore {
     }
 
     // ---------------- 更新检查 ----------------
-
-    /**
-     * GitHub 只读令牌，加密存。
-     *
-     * 为什么要它：仓库是私有的，`/releases/latest` 匿名访问返回 404。
-     * 令牌只授 `Contents: Read` 即可，泄露最多让人读到本仓库代码，碰不到零跑账号。
-     */
-    fun getUpdateToken(ctx: Context): String? {
-        val raw = sp(ctx).getString(KEY_UPDATE_TOKEN, null) ?: return null
-        if (!raw.startsWith(ENC_PREFIX)) return null
-        val blob = runCatching { Base64.decode(raw.removePrefix(ENC_PREFIX), Base64.NO_WRAP) }
-            .getOrNull() ?: return null
-        return SecureStore.decrypt(blob)?.takeIf { it.isNotBlank() }
-    }
-
-    fun setUpdateToken(ctx: Context, token: String) {
-        if (token.isBlank()) {
-            sp(ctx).edit().remove(KEY_UPDATE_TOKEN).apply()
-            return
-        }
-        val blob = SecureStore.encrypt(token.trim())
-        val encoded = ENC_PREFIX + Base64.encodeToString(blob, Base64.NO_WRAP)
-        sp(ctx).edit().putString(KEY_UPDATE_TOKEN, encoded).apply()
-    }
 
     /** 检查间隔（小时）：6 / 72 / 168 三档。 */
     fun getIntervalHours(ctx: Context): Long =

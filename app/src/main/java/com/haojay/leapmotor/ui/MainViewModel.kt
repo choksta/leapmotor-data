@@ -84,8 +84,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val cmdLogPath: String get() = CmdLog.path(ctx)
 
     // ---------------- 检查更新 ----------------
-    // 这段必须放在 init 之前：Kotlin 按声明顺序初始化属性，放后面的话
-    // init 里读 hasUpdateToken 会拿到默认 false。
+    // 这段必须放在 init 之前：Kotlin 按声明顺序初始化属性，
+    // 放后面的话 init 里调用 maybeCheckUpdate 会读到默认值。
 
     /** 当前安装的版本号。 */
     val currentVersion: String = runCatching {
@@ -108,10 +108,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var lastCheckAt by mutableStateOf(SettingsStore.getLastCheckAt(app))
         private set
 
-    /** 是否配了只读令牌。写入时同步，不在 getter 里解密。 */
-    var hasUpdateToken by mutableStateOf(!SettingsStore.getUpdateToken(app).isNullOrBlank())
-        private set
-
     val updateAvailable: Boolean
         get() = latestRelease?.let { UpdateChecker.compare(it.version, currentVersion) > 0 } == true
 
@@ -121,7 +117,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * 没有令牌时直接返回——私有仓库匿名请求必然 404，每次启动刷一遍错误提示只会让人困惑。
      */
     fun maybeCheckUpdate() {
-        if (!hasUpdateToken) return
         val last = SettingsStore.getLastCheckAt(ctx)
         if (last > 0 && System.currentTimeMillis() - last < updateIntervalH * 3_600_000L) return
         checkUpdate()
@@ -133,8 +128,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         updateChecking = true
         updateError = null
         viewModelScope.launch {
-            val token = SettingsStore.getUpdateToken(ctx)
-            val r = withContext(Dispatchers.IO) { UpdateChecker.fetchLatest(token) }
+            val r = withContext(Dispatchers.IO) { UpdateChecker.fetchLatest() }
             r.onSuccess {
                 latestRelease = it
                 SettingsStore.setLastCheckAt(ctx, System.currentTimeMillis())
@@ -151,15 +145,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         updateIntervalH = hours
         // 改间隔后重新算一次是否到期，否则要等下次启动才生效
         maybeCheckUpdate()
-    }
-
-    fun saveUpdateToken(token: String) {
-        SettingsStore.setUpdateToken(ctx, token)
-        hasUpdateToken = token.isNotBlank()
-        updateError = null
-        latestRelease = null
-        message = if (token.isBlank()) "已清除更新令牌" else "令牌已保存"
-        if (token.isNotBlank()) checkUpdate()
     }
 
     // ---- 登录态 ----

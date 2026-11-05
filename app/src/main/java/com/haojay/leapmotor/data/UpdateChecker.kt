@@ -19,10 +19,12 @@ data class AppRelease(
 /**
  * 从 GitHub Releases 检查更新。
  *
- * ⚠️ 仓库是私有的，匿名请求 `/releases/latest` 返回 404（实测过）。
- * 所以要么配一个只读令牌，要么只能打开发布页手下载。两者都支持。
+ * 仓库已公开，直接匿名请求 `releases/latest` 即可，**不需要任何令牌**。
+ * 之前那一版要配只读令牌，是因为仓库私有；现在这条限制没有了，
+ * 相应地把令牌输入、加密保存、校验失败提示一并去掉——少一个需要用户理解的概念。
  *
- * 令牌只用于这一处，和零跑账号凭证完全隔离，也不进日志。
+ * 注意 GitHub 对匿名请求有速率限制（每 IP 每小时 60 次），
+ * 所以调用方要按设置里的间隔节流，不要在每次进入页面时都请求。
  */
 object UpdateChecker {
 
@@ -35,14 +37,11 @@ object UpdateChecker {
         .build()
 
     /** 拉最新 release。阻塞调用，必须在 IO 线程。 */
-    fun fetchLatest(token: String?): Result<AppRelease> = runCatching {
+    fun fetchLatest(): Result<AppRelease> = runCatching {
         val req = Request.Builder()
             .url("https://api.github.com/repos/$REPO/releases/latest")
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
-            .apply {
-                if (!token.isNullOrBlank()) header("Authorization", "Bearer ${token.trim()}")
-            }
             .get()
             .build()
 
@@ -51,13 +50,9 @@ object UpdateChecker {
             if (!resp.isSuccessful) {
                 throw IllegalStateException(
                     when (resp.code) {
-                        401 -> "令牌无效或已过期"
-                        403 -> "请求过于频繁，稍后再试"
-                        404 -> if (token.isNullOrBlank()) {
-                            "私有仓库需要只读令牌才能查询"
-                        } else {
-                            "令牌无权访问该仓库，或还没有发布任何版本"
-                        }
+                        403, 429 -> "请求过于频繁，请稍后再试"
+                        404 -> "还没有发布任何版本"
+                        in 500..599 -> "GitHub 暂时不可用（${resp.code}）"
                         else -> "GitHub 返回 ${resp.code}"
                     }
                 )
@@ -65,6 +60,8 @@ object UpdateChecker {
 
             val o = JSONObject(raw)
             val tag = o.optString("tag_name")
+            if (tag.isEmpty()) throw IllegalStateException("版本信息为空")
+
             var apkUrl: String? = null
             var size = 0L
             val assets = o.optJSONArray("assets")
