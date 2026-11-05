@@ -149,17 +149,37 @@ class AlertCenterTest {
         val s = snap(
             "lock_status" to 0.0,
             "window_percent_left_front" to 40.0,
-            "window_percent_right_front" to 0.0,
-            "window_percent_left_rear" to 0.0,
-            "window_percent_right_rear" to 12.0,
             "trunk_open" to 0.0,
         )
         val issue = AlertCenter.stateIssue(s)
         assertTrue(issue!!.contains("车门未锁"))
-        assertTrue(issue.contains("左前窗 40%"))
-        assertTrue(issue.contains("右后窗 12%"))
-        // 没开的窗不该出现，否则一条提醒列四个窗反而看不出哪个有问题
-        assertFalse(issue.contains("右前"))
+        assertTrue(issue.contains("车窗未关"))
+        // 车端没标状态位的门序，所以不按门归因，只报聚合结论
+        assertFalse(issue.contains("左前"))
+    }
+
+    @Test
+    fun `只给状态位不给开度时也要报车窗`() {
+        // 参考实现实测：有的车型 644/645/865/866 恒为 0，只有 1693~1696 会变。
+        // 只认开度的话，这类车的"车窗未关"永远不触发。
+        val s = snap(
+            "lock_status" to 1.0,
+            "window_state_1" to 2.0,
+            "window_percent_left_front" to 0.0,
+        )
+        assertEquals("车窗未关", AlertCenter.stateIssue(s))
+    }
+
+    @Test
+    fun `状态位全为 0 时不报车窗`() {
+        val s = snap(
+            "lock_status" to 1.0,
+            "window_state_1" to 0.0,
+            "window_state_2" to 0.0,
+            "window_state_3" to 0.0,
+            "window_state_4" to 0.0,
+        )
+        assertNull(AlertCenter.stateIssue(s))
     }
 
     @Test

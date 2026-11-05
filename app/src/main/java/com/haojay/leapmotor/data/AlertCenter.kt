@@ -165,17 +165,10 @@ object AlertCenter {
 
         if (snap.locked == false) parts += "车门未锁"
 
-        val windows = listOf(
-            "window_percent_left_front" to "左前",
-            "window_percent_right_front" to "右前",
-            "window_percent_left_rear" to "左后",
-            "window_percent_right_rear" to "右后",
-        ).mapNotNull { (key, label) ->
-            val v = snap.d(key) ?: return@mapNotNull null
-            // 注意必须用 ${}：`$label窗` 会被当成一个叫 `label窗` 的变量名（Kotlin 允许中文标识符）
-            if (v <= 0.5) null else "${label}窗 ${v.roundToInt()}%"
-        }
-        if (windows.isNotEmpty()) parts += windows.joinToString("、")
+        // 车窗判断走聚合：状态位 1693~1696 与开度 644/645/865/866 在两套车型上各有缺失，
+        // 只认其中一套会导致"有的车永远不报、有的车一直报"。
+        // 因为车端没标状态位的门序，这里不按门归因。
+        if (snap.windowsAjar) parts += "车窗未关"
 
         if (snap.i("trunk_open") == 1) parts += "后备箱未关"
 

@@ -85,6 +85,11 @@ private fun groupsOf(s: CarSnapshot): List<InfoGroup> {
         "lock_status", "trunk_open", "sunshade_percent", "sentry_mode", "parking_photo",
         "remote_session", "window_percent_left_front", "window_percent_right_front",
         "window_percent_left_rear", "window_percent_right_rear",
+        // 以下 10 项在参考实现里有权威命名，已作为正式功能展示（或确认无需展示），
+        // 不再算「未破解」。混在里面会让人低估已掌握的数据量。
+        "window_state_1", "window_state_2", "window_state_3", "window_state_4",
+        "charge_plug", "ac_mode", "fast_cooling", "fast_heating",
+        "range_mode_code", "charge_schedule_cancelled",
         "latitude", "longitude", "signal_time",
     )
 
@@ -612,10 +617,14 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false, pendingLock: B
         "左后" to snap.d("window_percent_left_rear"),
         "右后" to snap.d("window_percent_right_rear"),
     )
-    val anyWindowOpen = windows.any { (it.second ?: 0.0) > 0.0 }
+    // 开度的可靠性因车型而异：有的车只给状态位（1693~1696），百分比恒 0。
+    // 所以「有没有开」用或判断，「开了多少」只在百分比有值时才说。
+    val anyPct = windows.any { (it.second ?: 0.0) > 0.0 }
+    val ajar = snap.windowsAjar
     val locked = pendingLock ?: snap.locked
     val trunkOpen = pendingTrunk ?: (snap.i("trunk_open") == 1)
     val sunshade = snap.d("sunshade_percent")
+    val plugIn = snap.i("charge_plug") == 1
 
     BodyContainer(bare) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
@@ -629,9 +638,9 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false, pendingLock: B
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    if (anyWindowOpen || trunkOpen) "有开启项" else "全部闭合",
+                    if (ajar || trunkOpen) "有开启项" else "全部闭合",
                     fontSize = 13.sp,
-                    color = if (anyWindowOpen || trunkOpen) MaterialTheme.colorScheme.error
+                    color = if (ajar || trunkOpen) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -641,6 +650,7 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false, pendingLock: B
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StateChip("车锁", if (locked == true) "已锁" else "未锁", locked != true, Modifier.weight(1f))
                 StateChip("后备箱", if (trunkOpen) "开启" else "关闭", trunkOpen, Modifier.weight(1f))
+                StateChip("充电枪", if (plugIn) "已插入" else "未插入", false, Modifier.weight(1f))
                 StateChip(
                     "遮阳帘",
                     sunshade?.let { "%.0f%%".format(it) } ?: "--",
@@ -651,14 +661,37 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false, pendingLock: B
 
             Spacer(Modifier.height(14.dp))
             Text(
-                "车窗开度",
+                "车窗",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
-            windows.forEach { (label, pct) ->
-                WindowBar(label, pct ?: 0.0)
-                Spacer(Modifier.height(7.dp))
+
+            if (anyPct) {
+                windows.forEach { (label, pct) ->
+                    WindowBar(label, pct ?: 0.0)
+                    Spacer(Modifier.height(7.dp))
+                }
+            } else {
+                // 车端没报开度时，不摆四根空条——那会让人以为"四窗都关着"，
+                // 而实际上可能只是这一型车不提供百分比。
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (ajar) "有车窗开启" else "四窗关闭",
+                        fontSize = 14.sp,
+                        fontWeight = if (ajar) FontWeight.Medium else FontWeight.Normal,
+                        color = if (ajar) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurface
+                    )
+                    if (ajar) {
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            "车端未上报开度",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
     }
@@ -746,7 +779,11 @@ private fun BatteryCard(snap: CarSnapshot, bare: Boolean = false) {
     val arcPrimary = MaterialTheme.colorScheme.primary
     val soc = snap.socPrecise ?: 0.0
     val live = snap.rangeLive ?: 0.0
-    val cltc = snap.d("range_ev_cltc") ?: 0.0
+    // 3262 决定车端表显跟的是哪套工况：0=CLTC，1=WLTC（缺失按 WLTC，与参考实现一致）。
+    // 两套工况的值都取出来并列显示——差 90 km 是标准差异，不是车况差异，
+    // 只给一条会让人以为"续航掉了"。
+    val modeCode = snap.i("range_mode_code")
+    val ratedLabel = if (modeCode != 0) "WLTC" else "CLTC"
     val battTemp = snap.d("battery_min_temp")
     val cc = snap.i("charge_connection")
     val volt = snap.d("charging_voltage")
@@ -799,17 +836,33 @@ private fun BatteryCard(snap: CarSnapshot, bare: Boolean = false) {
                 }
                 Spacer(Modifier.width(18.dp))
 
-                // 续航对比
+                // 续航对比：实时 / WLTC / CLTC 三条一起给
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        "续航",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "续航",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.weight(1f))
+                        // 只标"表显跟的是哪套工况"，不给某一条单独打标记：
+                        // 三条并列时，多一个标记反而更难扫读
+                        Text(
+                            "表显 $ratedLabel",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Spacer(Modifier.height(6.dp))
-                    RangeBar("实时", live, cltc, highlight = true)
-                    Spacer(Modifier.height(7.dp))
-                    RangeBar("CLTC", cltc, cltc, highlight = false)
+                    val wltc = snap.d("range_ev_wltc") ?: 0.0
+                    val cltc = snap.d("range_ev_cltc") ?: 0.0
+                    // 统一刻度：三条长度才能直接比。取三者最大，避免小值条一直是满的
+                    val scale = maxOf(wltc, cltc, live, 1.0)
+                    RangeBar("实时", live, scale, highlight = true)
+                    Spacer(Modifier.height(6.dp))
+                    RangeBar("WLTC", wltc, scale, highlight = false)
+                    Spacer(Modifier.height(6.dp))
+                    RangeBar("CLTC", cltc, scale, highlight = false)
                 }
             }
 
@@ -866,7 +919,9 @@ private fun BatteryCard(snap: CarSnapshot, bare: Boolean = false) {
                 }
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MiniMetric("充电状态", Values.chargeState(snap.d("charge_connection")), Modifier.weight(1f))
+                    // 「充电过程」而不是「充电状态」：车身卡已经有一个「充电枪」表示枪插没插，
+                    // 这里说的是充电进行到哪一步（充电中 / 待机 / 未插枪），两个是不同信号。
+                    MiniMetric("充电过程", Values.chargeState(snap.d("charge_connection")), Modifier.weight(1f))
                     MiniMetric(
                         "健康充电",
                         if (snap.i("healthy_charging") == 1) "开启" else "关闭",
@@ -1138,6 +1193,16 @@ private fun CabinCard(snap: CarSnapshot, bare: Boolean = false) {
                             )
                         }
                     }
+                    // 自动/手动只在空调运行时才有意义：关机状态下 1939 恒为 0，
+                    // 照着显示"手动"等于凭空断言。
+                    if (acOn) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            if (snap.i("ac_mode") == 1) "自动" else "手动",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -1160,6 +1225,18 @@ private fun CabinCard(snap: CarSnapshot, bare: Boolean = false) {
                 ComfortChip("方向盘", snap.i("steering_wheel_heating") == 1, Modifier.weight(1f))
                 ComfortChip("后窗加热", snap.i("rear_window_heat") == 1, Modifier.weight(1f))
                 ComfortChip("前挡除霜", snap.i("windshield_defrost") == 1, Modifier.weight(1f))
+            }
+            // 极速制冷/制热是两个独立开关（2669 / 2681），但界面上当一件事表达：
+            // 用户关心的是"现在是不是在猛吹"，不关心走的是哪条通路。
+            val fastCool = snap.i("fast_cooling") == 1
+            val fastHeat = snap.i("fast_heating") == 1
+            if (fastCool || fastHeat) {
+                Spacer(Modifier.height(8.dp))
+                ComfortChip(
+                    if (fastCool) "极速制冷中" else "极速制热中",
+                    true,
+                    Modifier.fillMaxWidth()
+                )
             }
         }
     }

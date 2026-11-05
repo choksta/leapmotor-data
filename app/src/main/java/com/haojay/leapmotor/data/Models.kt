@@ -20,6 +20,23 @@ data class CarSnapshot(
         get() = listOf("window_percent_left_front", "window_percent_right_front",
             "window_percent_left_rear", "window_percent_right_rear")
             .any { (d(it) ?: 0.0) > 0 }
+
+    /**
+     * 四窗状态位（1693~1696，0=关，2=开）。
+     *
+     * 为什么不直接用开度百分比：参考实现实测，那台车上 `644/645/865/866` **恒为 0**，
+     * 只有这四个状态位会跟着开窗指令变。两套信号在不同车型上各有缺失，所以判断
+     * 「车窗有没有关」要两者取或，而**开度**只能信百分比。
+     *
+     * 顺序未知（车端没标哪一位对哪个门），所以只做聚合判断，不按门归因。
+     */
+    val windowStates: List<Int?> get() = listOf(
+        "window_state_1", "window_state_2", "window_state_3", "window_state_4"
+    ).map { i(it) }
+
+    /** 任一侧车窗处于开启状态（状态位或开度，任一为真）。 */
+    val windowsAjar: Boolean
+        get() = windowStates.any { (it ?: 0) != 0 } || windowsOpen
 }
 
 /** 逐日里程/能耗。 */
