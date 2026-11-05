@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 单色层：只保留 L 与数据点，颜色由系统主题接管 -->
+<!-- 单色层（Android 13+ 主题图标）：几何与前景层一致，颜色交给系统。
+     保留中轴与圆点的断开——那是这个标志的结构，不是装饰。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -7,13 +8,38 @@
     android:viewportHeight="108">
 
     <path
-        android:pathData="M38,30 L38,76 L80,76"
+        android:pathData="M39.98,37.58 L33.41,41.96 L33.41,63.86 L47.28,72.62"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="13"
+        android:strokeWidth="4.67"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
 
     <path
+        android:pathData="M54,27.36 L67.43,35.39 L74.29,39.04 L74.29,66.05 L60.42,74.08"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.67"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <path
+        android:pathData="M54,27.36 L54,43.42"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.67"
+        android:strokeLineCap="round" />
+
+    <path
+        android:pathData="M54,64.59 L54,80.65"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.67"
+        android:strokeLineCap="round" />
+
+    <path
+        android:pathData="M47.28,54.51 L51.96,54.51"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.8"
+        android:strokeLineCap="round" />
+
+    <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M70,40 m-6.5,0 a6.5,6.5 0 1,0 13,0 a6.5,6.5 0 1,0 -13,0" />
+        android:pathData="M60.13,54.51 m-2.04,0 a2.04,2.04 0 1,0 4.08,0 a2.04,2.04 0 1,0 -4.08,0" />
 </vector>

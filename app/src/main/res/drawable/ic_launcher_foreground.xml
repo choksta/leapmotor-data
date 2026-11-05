@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  应用图标前景层：LeapCo 的 "L"
-  - 自适应图标画布 108×108；内容收在 24~87，落在不会被裁切的安全区内
-  - 单笔折线 + 圆头端点：小尺寸下依然是一笔可辨的 L
-    （旧图标有车身、车窗、车轮、数据波形，缩到 48dp 全糊成噪点）
-  - 右上薄荷点：数据点的落点，也是 "Leap" 的暗示
+  应用图标前景层：用户提供的 512×512 SVG，等比缩放并居中到 108dp 画布。
+
+  缩放系数 **s = 0.146**：
+    x' = 54 + (x - 256) × 0.146
+    y' = 54 + (y - 252.5) × 0.146
+
+  为什么不是铺满：自适应图标名义上 108×108，但**启动器只显示中间 72×72**（18~90），
+  圆形遮罩时还要再收。按 0.146 缩放后图形高 58dp（25~83），在最严苛的圆形遮罩下也完整。
+  试过 0.18/0.19：肉眼在方形预览里没问题，装上真机后上下两端被遮罩切平——预览必须按可见区裁。
+
+  线宽同步缩放：32 → 4.67，26 → 3.8，圆点半径 14 → 2.04。
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -12,14 +18,45 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
+    <!-- 左翼（青蓝 #4FA3B3） -->
     <path
-        android:pathData="M38,30 L38,76 L80,76"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="13"
+        android:pathData="M39.98,37.58 L33.41,41.96 L33.41,63.86 L47.28,72.62"
+        android:strokeColor="#4FA3B3"
+        android:strokeWidth="4.67"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
 
+    <!-- 右翼（亮青绿 #2CE47E） -->
     <path
-        android:fillColor="#7BD1EE"
-        android:pathData="M70,40 m-6.5,0 a6.5,6.5 0 1,0 13,0 a6.5,6.5 0 1,0 -13,0" />
+        android:pathData="M54,27.36 L67.43,35.39 L74.29,39.04 L74.29,66.05 L60.42,74.08"
+        android:strokeColor="#2CE47E"
+        android:strokeWidth="4.67"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- 中轴上半段 -->
+    <path
+        android:pathData="M54,27.36 L54,43.42"
+        android:strokeColor="#2CE47E"
+        android:strokeWidth="4.67"
+        android:strokeLineCap="round" />
+
+    <!-- 中轴下半段 -->
+    <path
+        android:pathData="M54,64.59 L54,80.65"
+        android:strokeColor="#2CE47E"
+        android:strokeWidth="4.67"
+        android:strokeLineCap="round" />
+
+    <!-- 中间短横 -->
+    <path
+        android:pathData="M47.28,54.51 L51.96,54.51"
+        android:strokeColor="#2CE47E"
+        android:strokeWidth="3.8"
+        android:strokeLineCap="round" />
+
+    <!-- 右侧圆点 -->
+    <path
+        android:fillColor="#2CE47E"
+        android:pathData="M60.13,54.51 m-2.04,0 a2.04,2.04 0 1,0 4.08,0 a2.04,2.04 0 1,0 -4.08,0" />
 </vector>
