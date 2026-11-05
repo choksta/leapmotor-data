@@ -64,6 +64,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haojay.leapmotor.data.CarSnapshot
+import com.haojay.leapmotor.data.CmdLog
 
 private data class Act(
     val label: String,
@@ -96,6 +97,8 @@ fun ControlScreen(
     hasPin: Boolean,
     pendingAcOn: Boolean? = null,
     pendingLock: Boolean? = null,
+    cmdLog: List<CmdLog.Entry> = emptyList(),
+    cmdLogPath: String = "",
     chargeSoc: Int? = null,
     chargeBusy: Boolean = false,
     onSetChargeSoc: (Int) -> Unit = {},
@@ -269,6 +272,8 @@ fun ControlScreen(
         if (!hasPin) {
             item { PinCard(pinInput, { pinInput = it }, onSavePin) }
         }
+
+        item { CmdLogCard(cmdLog, cmdLogPath) }
     }
 
     pending?.let { a ->
@@ -625,6 +630,85 @@ private fun PinCard(value: String, onChange: (String) -> Unit, onSave: (String) 
                     enabled = value.length == 4,
                     shape = MaterialTheme.shapes.large
                 ) { Text("保存", fontSize = 15.sp) }
+            }
+        }
+    }
+}
+
+/**
+ * 指令账本：把下发过的车控指令列出来。
+ *
+ * 用途是事后核对——「这个 App 到底发过什么」。界面只显示最近 10 条，
+ * 完整记录（60 条）在 filesDir/command_log.json，路径也一并显示，方便 adb 直接读。
+ */
+@Composable
+private fun CmdLogCard(log: List<CmdLog.Entry>, path: String) {
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "指令记录",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    if (log.isEmpty()) "空" else "${log.size} 条",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            if (log.isEmpty()) {
+                Text(
+                    "还没有下发过指令。",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                log.forEachIndexed { i, e ->
+                    if (i > 0) Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.Top) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                CmdLog.timeText(e.at) + "  " + e.label,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (e.params.isNotEmpty()) {
+                                Text(
+                                    e.params,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp,
+                                    maxLines = 2,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Text(
+                            if (e.ok) "成功" else "失败 ${e.code}",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (e.ok) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+            if (path.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "完整记录：$path",
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
             }
         }
     }

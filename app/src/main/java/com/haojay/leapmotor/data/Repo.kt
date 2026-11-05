@@ -139,27 +139,37 @@ class Repo(private val ctx: Context) {
 
     /** 下发指令；返回 (成功, 提示语)。cmdId 480 走健康充电专用接口。 */
     fun sendCommand(sess: LpSession, cmdId: Int, state: Map<String, Any?>): Pair<Boolean, String> {
-        val vin = sess.vin ?: return false to "会话缺少 VIN"
-        return try {
+        val vin = sess.vin ?: run {
+            CmdLog.record(ctx, cmdId, state, -1, "会话缺少 VIN", false, 0)
+            return false to "会话缺少 VIN"
+        }
+        val started = System.currentTimeMillis()
+        var code = -1
+        var ok = false
+        var msg = ""
+        try {
             val r = if (cmdId == 480) {
                 // 健康充电不是通用车控指令，用 480 会被受理但不执行
                 api(sess).healthyCharging(vin, state["state"]?.toString() == "1")
             } else {
                 api(sess).remoteControl(vin, cmdId, state)
             }
-            val code = r.optInt("code", -1)
-            // 把完整响应打出来：车控失败时服务端会把真实原因塞在 data 里
-            // （例如 "java.lang.Integer cannot be cast to java.lang.String"），
-            // 不打日志就只能靠猜。
+            code = r.optInt("code", -1)
+            // 完整响应打进 logcat：失败时服务端会把真实原因塞在 data 里
+            // （例如 "java.lang.Integer cannot be cast to java.lang.String"）
             android.util.Log.d("LPCMD", "cmd=$cmdId state=$state → ${r.toString().take(400)}")
             if (code == 0) {
-                true to "指令已下发"
+                ok = true
+                msg = "指令已下发"
             } else {
-                val msg = r.optString("message").ifEmpty { "失败" }
-                false to "$msg（$code）"
+                val m = r.optString("message").ifEmpty { "失败" }
+                msg = "$m（$code）"
             }
         } catch (e: Exception) {
-            false to (e.message ?: "网络异常")
+            msg = e.message ?: "网络异常"
         }
+        // 落盘留痕：车控是对真实车辆的动作，logcat 会被清空，不能作为凭据
+        CmdLog.record(ctx, cmdId, state, code, msg, ok, System.currentTimeMillis() - started)
+        return ok to msg
     }
 }

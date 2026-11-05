@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.haojay.leapmotor.data.AuthManager
 import com.haojay.leapmotor.data.CarSnapshot
+import com.haojay.leapmotor.data.CmdLog
 import com.haojay.leapmotor.data.LpSession
 import com.haojay.leapmotor.data.Poller
 import com.haojay.leapmotor.data.Repo
@@ -22,6 +23,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
+
+    /** 构造参数只在属性初始化时可见，方法内需要访问 context 的地方统一用这个。 */
+    private val ctx: Application = app
 
     private val repo = Repo(app)
     private val auth = AuthManager(app)
@@ -68,6 +72,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var pendingTrunk by mutableStateOf<Boolean?>(null)
         private set
 
+    /** 指令账本（最新在前）。车控留痕，供事后回溯。 */
+    var cmdLog by mutableStateOf<List<CmdLog.Entry>>(emptyList())
+        private set
+
+    /** 账本文件路径，方便 adb 直接读取核对。 */
+    val cmdLogPath: String get() = CmdLog.path(ctx)
+
     // ---- 登录态 ----
     var loginBusy by mutableStateOf(false)
         private set
@@ -80,6 +91,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val s = SessionStore.load(app)
         session = s?.also { it.operatePwd = SettingsStore.getPin(app) }
         loggedIn = s != null
+        reloadCmdLog()
         if (s != null) refreshSnapshot()
     }
 
@@ -275,7 +287,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (targetReached(s, cmdId, state)) break
             }
             clearOptimistic(cmdId)
+            reloadCmdLog()
         }
+    }
+
+    fun reloadCmdLog() {
+        cmdLog = CmdLog.recent(ctx, 10)
     }
 
     private fun applyOptimistic(cmdId: Int, state: Map<String, Any?>) {
