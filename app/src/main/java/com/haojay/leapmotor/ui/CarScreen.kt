@@ -55,6 +55,9 @@ import androidx.compose.runtime.setValue
 private data class InfoRow(val label: String, val value: String)
 private data class InfoGroup(val title: String, val rows: List<InfoRow>)
 
+/** 「待确认信号」那块的标题。展示与折叠判断共用一处，避免改一个漏一个。 */
+private const val GROUP_PENDING = "待确认信号"
+
 private fun fmtTime(ms: Long): String =
     if (ms <= 0) "--" else SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA).format(Date(ms))
 
@@ -89,7 +92,7 @@ private fun groupsOf(s: CarSnapshot): List<InfoGroup> {
         "remote_session", "window_percent_left_front", "window_percent_right_front",
         "window_percent_left_rear", "window_percent_right_rear",
         // 以下 10 项在参考实现里有权威命名，已作为正式功能展示（或确认无需展示），
-        // 不再算「未破解」。混在里面会让人低估已掌握的数据量。
+        // 不再进入待确认列表。混在里面会让人低估已掌握的数据量。
         "window_state_1", "window_state_2", "window_state_3", "window_state_4",
         "charge_plug", "ac_mode", "fast_cooling", "fast_heating",
         "range_mode_code", "charge_schedule_cancelled",
@@ -98,7 +101,7 @@ private fun groupsOf(s: CarSnapshot): List<InfoGroup> {
 
     val list = listOf(
         InfoGroup(
-            "未破解信号", m.filterKeys { it !in known }.toSortedMap()
+            GROUP_PENDING, m.filterKeys { it !in known }.toSortedMap()
                 .map { (k, v) -> InfoRow(k, Values.num(v)) }
         ),
     )
@@ -277,7 +280,7 @@ fun CarScreen(
         }
 
         items(groups, key = { it.title }) { g ->
-            GroupCard(g, collapsible = g.title == "未破解信号")
+            GroupCard(g, collapsible = g.title == GROUP_PENDING)
         }
 
         item {
@@ -358,7 +361,7 @@ private fun MiniStat(label: String, value: String) {
 
 @Composable
 private fun GroupCard(g: InfoGroup, collapsible: Boolean = false) {
-    // 未破解信号默认收起：18 项 raw 值摊开会占两屏，把真正有用的信息推出视野
+    // 待确认信号默认收起：二十多项原始值摊开会占两屏，把真正有用的信息推出视野
     var expanded by remember { mutableStateOf(!collapsible) }
     Card(
         shape = MaterialTheme.shapes.large,
