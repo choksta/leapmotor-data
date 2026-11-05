@@ -311,56 +311,66 @@ private fun SectionLabel(text: String) {
 /** 状态总览：电量与续航是主角，其余靠字号退让。 */
 @Composable
 private fun StatusHero(snap: CarSnapshot?, locked: Boolean?, soc: Double) {
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "零跑 B01",
-                fontSize = 15.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 0.4.sp,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                when (locked) {
-                    true -> "车门已锁"
-                    false -> "车门未锁"
-                    null -> "状态未知"
-                },
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = when (locked) {
-                    true -> MaterialTheme.colorScheme.primary
-                    false -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
+    // 做成卡片，与控制页其他区块边界一致
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "零跑 B01",
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 0.4.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    when (locked) {
+                        true -> "车门已锁"
+                        false -> "车门未锁"
+                        null -> "状态未知"
+                    },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = when (locked) {
+                        true -> MaterialTheme.colorScheme.primary
+                        false -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    snap?.socPrecise?.let { "%.0f".format(it) } ?: "--",
+                    fontSize = 62.sp,
+                    fontWeight = FontWeight.Light,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    "%",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Light,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp, start = 3.dp)
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    snap?.rangeLive?.let { "%.0f km" .format(it) } ?: "-- km",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            SocBar(soc = soc, modifier = Modifier.fillMaxWidth(), height = 16.dp)
         }
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                snap?.socPrecise?.let { "%.0f".format(it) } ?: "--",
-                fontSize = 62.sp,
-                fontWeight = FontWeight.Light,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                "%",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Light,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 12.dp, start = 3.dp)
-            )
-            Spacer(Modifier.weight(1f))
-            Text(
-                snap?.rangeLive?.let { "%.0f km" .format(it) } ?: "-- km",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 10.dp)
-            )
-        }
-        Spacer(Modifier.height(14.dp))
-        SocBar(soc = soc, modifier = Modifier.fillMaxWidth(), height = 16.dp)
     }
 }
 

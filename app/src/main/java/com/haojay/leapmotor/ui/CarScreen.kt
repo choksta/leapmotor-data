@@ -150,67 +150,76 @@ fun CarScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            // Expressive Hero：不用卡片底色，靠 62sp 细字重 + 波浪进度建立焦点
-            Column(Modifier.padding(vertical = 2.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (snap.isCharging) MaterialTheme.colorScheme.tertiary
-                                else MaterialTheme.colorScheme.primary
-                            )
+            // 顶部电量区做成卡片：与下方区块边界对齐，扫视时不需要在背景上找数字起点。
+            // 主数字仍是 62sp Light，卡片只提供边界，不抢焦点。
+            Card(
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (snap.isCharging) MaterialTheme.colorScheme.tertiary
+                                    else MaterialTheme.colorScheme.primary
+                                )
+                        )
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            chip,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            since(snap.signalTime),
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            "%.0f".format(snap.socPrecise ?: 0.0),
+                            fontSize = 62.sp,
+                            fontWeight = FontWeight.Light,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "%",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Light,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 11.dp, start = 3.dp)
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            Values.km(snap.rangeLive),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    SocBar(
+                        soc = snap.socPrecise ?: 0.0,
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 14.dp,
                     )
-                    Spacer(Modifier.width(7.dp))
-                    Text(
-                        chip,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        since(snap.signalTime),
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        "%.0f".format(snap.socPrecise ?: 0.0),
-                        fontSize = 62.sp,
-                        fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        "%",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Light,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 11.dp, start = 3.dp)
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        Values.km(snap.rangeLive),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                SocBar(
-                    soc = snap.socPrecise ?: 0.0,
-                    modifier = Modifier.fillMaxWidth(),
-                    height = 14.dp,
-                )
-                Spacer(Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
-                    MiniStat("里程", Values.km(snap.odometer).removeSuffix(" km"))
-                    MiniStat("挡位", Values.gear(snap.d("gear")))
-                    MiniStat("车内", Values.celsius(snap.d("interior_temp")))
+                    Spacer(Modifier.height(16.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                        MiniStat("里程", Values.km(snap.odometer).removeSuffix(" km"))
+                        MiniStat("挡位", Values.gear(snap.d("gear")))
+                        MiniStat("车内", Values.celsius(snap.d("interior_temp")))
+                    }
                 }
             }
         }
