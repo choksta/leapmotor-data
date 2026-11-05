@@ -1483,6 +1483,17 @@ private fun LocationCard(
         resolving = false
     }
 
+    // 跳地图时把**解析出来的地址**当 POI 名字带过去。
+    // 之前传的是写死的 "LeapCo 车辆位置"，于是高德上只画一个点、气泡里写着一句废话，
+    // 用户还得自己对照地址找位置 —— 等于没跳。
+    val poiName = address?.takeIf { it.isNotBlank() }
+        ?: "%.5f, %.5f".format(lat ?: 0.0, lon ?: 0.0)
+    val jumpAmap = {
+        val la = if (mapUseWgs) wgsLat!! else lat!!
+        val lo = if (mapUseWgs) wgsLon!! else lon!!
+        openMap(ctx, la, lo, poiName, amap = true)
+    }
+
     BodyContainer(bare) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1514,7 +1525,8 @@ private fun LocationCard(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         lineHeight = 23.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable { jumpAmap() }
                     )
                     Spacer(Modifier.height(4.dp))
                     // 显示的坐标跟跳转时用的保持一致，免得"界面上一个数、地图上是另一个点"
@@ -1553,15 +1565,10 @@ private fun LocationCard(
             if (valid) {
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MapButton("高德地图", Modifier.weight(1f)) {
-                        // 高德要 GCJ；只有用户在校正里切过才改用 WGS
-                        val la = if (mapUseWgs) wgsLat!! else lat!!
-                        val lo = if (mapUseWgs) wgsLon!! else lon!!
-                        openMap(ctx, la, lo, "LeapCo 车辆位置", amap = true)
-                    }
+                    MapButton("高德地图", Modifier.weight(1f)) { jumpAmap() }
                     MapButton("其他地图", Modifier.weight(1f), secondary = true) {
-                        // geo: 协议是 WGS-84，系统地图按 WGS 摆点
-                        openMap(ctx, wgsLat!!, wgsLon!!, "LeapCo 车辆位置", amap = false)
+                        // geo: 协议是 WGS-84，系统地图按 WGS 摆点；名字同样带地址
+                        openMap(ctx, wgsLat!!, wgsLon!!, poiName, amap = false)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
