@@ -1,6 +1,7 @@
 package com.haojay.leapmotor.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +38,12 @@ import androidx.compose.ui.semantics.semantics
 @Composable
 fun DailyBarChart(points: List<DailyPoint>, modifier: Modifier = Modifier) {
     val barColor = MaterialTheme.colorScheme.primary
-    val barMuted = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    // 弱化柱不能用一个 alpha 打天下：深色下 primary 是亮青，0.28 叠在近黑底上
+    // 混出来的颜色只有 1.6:1 对比度，柱子几乎看不见。深色给 0.55 —— 混色后约 4:1，
+    // 够当图形元素读，又不会压过当前选中柱（它用不透明 primary）。
+    val barMuted = MaterialTheme.colorScheme.primary.copy(
+        alpha = if (isSystemInDarkTheme()) 0.55f else 0.28f
+    )
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
     val max = (points.maxOfOrNull { it.mileage } ?: 0.0).coerceAtLeast(1.0)
     val lastActive = points.indexOfLast { it.mileage > 0 }
