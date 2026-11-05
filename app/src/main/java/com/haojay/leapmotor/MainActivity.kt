@@ -222,7 +222,6 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
                                 loading = vm.loadingSnapshot,
                                 error = vm.error,
                                 polling = vm.polling,
-                                sampleCount = vm.sampleCount,
                                 onRefresh = vm::refreshSnapshot,
                                 onLogout = vm::logout,
                                 topInset = listTop,
@@ -231,12 +230,7 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
                             1 -> TrendScreen(
                                 trend = vm.trend,
                                 loading = vm.loadingTrend,
-                                trips = vm.trips,
-                                sampleCount = vm.sampleCount,
-                                onLoad = {
-                                    vm.refreshTrend()
-                                    vm.reloadTrips()
-                                },
+                                onLoad = { vm.refreshTrend() },
                                 topInset = listTop,
                                 bottomInset = listBottom
                             )

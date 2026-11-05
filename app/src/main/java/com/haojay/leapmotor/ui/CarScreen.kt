@@ -106,7 +106,6 @@ fun CarScreen(
     loading: Boolean,
     error: String?,
     polling: Boolean,
-    sampleCount: Int,
     onRefresh: () -> Unit,
     onLogout: () -> Unit = {},
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
@@ -263,10 +262,7 @@ fun CarScreen(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    buildString {
-                        append(if (polling) "前台采集中" else "采样已暂停")
-                        append(" · 已存 $sampleCount 条样本")
-                    },
+                    if (polling) "前台刷新中 · 行驶 6 秒 / 其余 30 秒" else "自动刷新已暂停",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

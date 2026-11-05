@@ -8,14 +8,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.haojay.leapmotor.data.AuthManager
 import com.haojay.leapmotor.data.CarSnapshot
-import com.haojay.leapmotor.data.LpDb
 import com.haojay.leapmotor.data.LpSession
 import com.haojay.leapmotor.data.Poller
 import com.haojay.leapmotor.data.Repo
 import com.haojay.leapmotor.data.SessionStore
 import com.haojay.leapmotor.data.SettingsStore
 import com.haojay.leapmotor.data.TrendData
-import com.haojay.leapmotor.data.Trip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -77,11 +75,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     val hasPin: Boolean get() = !session?.operatePwd.isNullOrEmpty()
 
-    // ---------------- 轮询入库 ----------------
+    // ---------------- 前台自适应轮询 ----------------
 
-    private val db = LpDb(app)
-
-    private val poller = Poller(db) {
+    private val poller = Poller {
         val sess = session ?: error("未登录")
         withAuthRetry(sess) { repo.fetchSnapshot(it) }
     }
@@ -89,42 +85,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var polling by mutableStateOf(false)
         private set
 
-    var sampleCount by mutableStateOf(0)
-        private set
-
     var lastTick by mutableStateOf<Poller.Tick?>(null)
         private set
 
-    var trips by mutableStateOf<List<Trip>>(emptyList())
-        private set
-
-    /** 前台：开始按状态自适应采样。 */
+    /** 前台：开始按状态自适应刷新。 */
     fun startPolling() {
         if (!loggedIn || poller.running) return
-        poller.restoreState(snapshot)
         poller.start(viewModelScope) { tick ->
             lastTick = tick
             // 每一轮都把最新车况推给界面：这才是"实时"的来源，
             // 否则下完指令界面要等下一轮手动刷新才变。
             snapshot = tick.snapshot
             error = null
-            sampleCount = db.sampleCount()
         }
         polling = true
-        viewModelScope.launch(Dispatchers.IO) {
-            sampleCount = db.sampleCount()
-            trips = db.recentTrips()
-        }
     }
 
-    /** 后台：停止采样（B 方案固有限制）。 */
+    /** 后台：停止刷新。 */
     fun stopPolling() {
         poller.stop()
         polling = false
-    }
-
-    fun reloadTrips() {
-        viewModelScope.launch(Dispatchers.IO) { trips = db.recentTrips() }
     }
 
     // ---------------- 登录 ----------------

@@ -27,10 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haojay.leapmotor.data.TrendData
-import com.haojay.leapmotor.data.Trip
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.foundation.background
@@ -42,8 +38,6 @@ import androidx.compose.foundation.layout.width
 fun TrendScreen(
     trend: TrendData?,
     loading: Boolean,
-    trips: List<Trip>,
-    sampleCount: Int,
     onLoad: () -> Unit,
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
     bottomInset: androidx.compose.ui.unit.Dp = 96.dp,
@@ -245,56 +239,6 @@ fun TrendScreen(
             }
         }
 
-        item {
-            SectionCard("本地行程记录") {
-                Text(
-                    "已采样 $sampleCount 条 · ${trips.size} 段行程",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(10.dp))
-                if (trips.isEmpty()) {
-                    Text(
-                        "还没有记录。App 在前台且车辆行驶时会自动采样切分（行驶 6 秒 / 充电 30 秒 / 驻车 30 秒）。",
-                        fontSize = 14.sp,
-                        lineHeight = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-                } else {
-                    val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.CHINA)
-                    trips.forEachIndexed { i, t ->
-                        if (i > 0) Spacer(Modifier.height(9.dp))
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    fmt.format(Date(t.startMs)),
-                                    fontSize = 16.sp,
-                                )
-                                Text(
-                                    t.endMs?.let { "至 " + fmt.format(Date(it)) } ?: "进行中",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                "${t.distance.toInt()} km",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.weight(0.6f),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.End
-                            )
-                            Text(
-                                "-${"%.1f".format(t.socUsed)}%",
-                                fontSize = 16.sp,
-                                modifier = Modifier.weight(0.6f),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
