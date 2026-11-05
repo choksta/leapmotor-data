@@ -30,10 +30,10 @@
             </intent-filter>
         </activity>
 
-        <!-- 只在充电时启动：拔枪即自行停止。type 用 dataSync，
-             Android 14+ 必须显式声明，否则 startForeground 直接抛异常。 -->
+        <!-- 车辆监控：插枪时展示充电实时活动，可选在离车后继续监控门锁/车窗/胎压。
+             type 用 dataSync，Android 14+ 必须显式声明，否则 startForeground 直接抛异常。 -->
         <service
-            android:name=".data.ChargeLiveService"
+            android:name=".data.VehicleWatchService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

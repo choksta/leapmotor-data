@@ -21,6 +21,7 @@ object SettingsStore {
     private const val KEY_UPDATE_TOKEN = "update_token"
     private const val KEY_CHECK_INTERVAL = "update_interval_h"
     private const val KEY_LAST_CHECK = "update_last_check"
+    private const val KEY_MONITOR = "background_monitor"
     private const val ENC_PREFIX = "enc:"
 
     /** 默认每 6 小时查一次更新。 */
@@ -103,5 +104,19 @@ object SettingsStore {
 
     fun setLastCheckAt(ctx: Context, at: Long) {
         sp(ctx).edit().putLong(KEY_LAST_CHECK, at).apply()
+    }
+
+    // ---------------- 后台监控 ----------------
+
+    /**
+     * 是否在没插枪时也保持后台监控。
+     *
+     * 默认关。开了之后前台服务常驻，才能在你离车后提醒"车门没锁"；
+     * 代价是一条常驻通知和少量耗电，所以这个决定交给用户，不默认替人做。
+     */
+    fun getMonitorOn(ctx: Context): Boolean = sp(ctx).getBoolean(KEY_MONITOR, false)
+
+    fun setMonitorOn(ctx: Context, on: Boolean) {
+        sp(ctx).edit().putBoolean(KEY_MONITOR, on).apply()
     }
 }

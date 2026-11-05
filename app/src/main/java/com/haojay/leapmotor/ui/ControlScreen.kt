@@ -109,6 +109,8 @@ fun ControlScreen(
     versionName: String = "",
     updateHint: String = "",
     onOpenUpdate: () -> Unit = {},
+    monitorOn: Boolean = false,
+    onMonitorChange: (Boolean) -> Unit = {},
 ) {
     var pending by remember { mutableStateOf<Act?>(null) }
     var pinInput by remember { mutableStateOf("") }
@@ -276,6 +278,7 @@ fun ControlScreen(
         }
 
         item { CmdLogCard(cmdLog, cmdLogPath) }
+        item { MonitorCard(monitorOn, onMonitorChange) }
         item { UpdateEntry(versionName, updateHint, onOpenUpdate) }
     }
 
@@ -718,6 +721,48 @@ private fun CmdLogCard(log: List<CmdLog.Entry>, path: String) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
+        }
+    }
+}
+
+/**
+ * 后台监控开关。
+ *
+ * 为什么要有这个开关而不是默认开：提醒的价值在"人已经离车"，但那需要一条常驻通知
+ * 和一个前台服务。这个代价该由用户自己判断，不该替他决定。
+ *
+ * 插枪时无论开关如何都会启动（充电实时活动不需要额外授权），这一点写在副标题里，
+ * 免得人以为"关了就不提醒充电"。
+ */
+@Composable
+private fun MonitorCard(on: Boolean, onChange: (Boolean) -> Unit) {
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "离车后继续监控",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    if (on) "车门未锁、车窗未关、胎压异常会通知你。充电时自动开启，与这个开关无关。"
+                    else "关闭时只在充电期间提醒。打开后离车也能收到门锁与胎压提醒。",
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(checked = on, onCheckedChange = onChange)
         }
     }
 }

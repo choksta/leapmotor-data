@@ -90,6 +90,10 @@ class MainActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
             window.isStatusBarContrastEnforced = false
         }
+        // 通道必须早于任何通知创建：Service 起来时若通道不存在，
+        // 通知虽然能发出去，但用户去设置里看不到分类，也没法单独关掉某一类提醒。
+        com.haojay.leapmotor.data.AlertCenter.ensureChannels(this)
+
         // Android 13+ 通知需要运行时授权。拿不到只是没有充电通知，
         // 其它功能不受影响，所以只请求一次、不阻塞启动。
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
@@ -270,7 +274,9 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
                                 updateHint = if (vm.updateAvailable) {
                                     "有新版本 " + (vm.latestRelease?.version ?: "") + "，点我查看"
                                 } else "",
-                                onOpenUpdate = { showUpdate = true }
+                                onOpenUpdate = { showUpdate = true },
+                                monitorOn = vm.monitorOn,
+                                onMonitorChange = vm::applyMonitor
                             )
                         }
                     }

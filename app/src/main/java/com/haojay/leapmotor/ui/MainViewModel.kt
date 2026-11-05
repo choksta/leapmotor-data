@@ -9,7 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.haojay.leapmotor.data.AppRelease
 import com.haojay.leapmotor.data.AuthManager
 import com.haojay.leapmotor.data.CarSnapshot
-import com.haojay.leapmotor.data.ChargeLiveService
+import com.haojay.leapmotor.data.VehicleWatchService
 import com.haojay.leapmotor.data.CmdLog
 import com.haojay.leapmotor.data.LpSession
 import com.haojay.leapmotor.data.Poller
@@ -214,17 +214,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private var chargeLiveOn = false
 
+    /** 后台监控开关（离车后是否继续盯着门锁/车窗/胎压）。 */
+    var monitorOn by mutableStateOf(SettingsStore.getMonitorOn(app))
+        private set
+
+    fun applyMonitor(on: Boolean) {
+        SettingsStore.setMonitorOn(ctx, on)
+        monitorOn = on
+        // 立刻生效，不等下一轮判定
+        VehicleWatchService.sync(ctx, snapshot)
+        chargeLiveOn = VehicleWatchService.shouldRun(ctx, snapshot)
+    }
+
     /**
-     * 插枪/拔枪时启停前台服务。
+     * 插枪/拔枪、或监控开关变化时，启停前台服务。
      *
-     * 只在翻转那一刻动一次：服务自己负责后续轮询，App 退到后台也不受影响。
+     * 判断口径统一在 [VehicleWatchService.shouldRun]：插枪中，或用户开了后台监控。
+     * 只在翻转那一刻调一次，服务自己负责后续轮询，App 退到后台也不受影响。
      * App 重启后 [chargeLiveOn] 归 false，会重复调一次 start —— 服务是幂等的，无害。
      */
     private fun syncChargeLive(s: CarSnapshot?) {
-        val plugged = s?.plugged == true
-        if (plugged == chargeLiveOn) return
-        chargeLiveOn = plugged
-        if (plugged) ChargeLiveService.start(ctx) else ChargeLiveService.stop(ctx)
+        val run = VehicleWatchService.shouldRun(ctx, s)
+        if (run == chargeLiveOn) return
+        chargeLiveOn = run
+        VehicleWatchService.sync(ctx, s)
     }
 
     /** 后台：停止刷新。 */
