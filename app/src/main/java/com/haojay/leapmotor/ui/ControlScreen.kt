@@ -95,6 +95,7 @@ fun ControlScreen(
     busy: Int?,
     hasPin: Boolean,
     pendingAcOn: Boolean? = null,
+    pendingLock: Boolean? = null,
     chargeSoc: Int? = null,
     chargeBusy: Boolean = false,
     onSetChargeSoc: (Int) -> Unit = {},
@@ -117,7 +118,8 @@ fun ControlScreen(
 
     LaunchedEffect(Unit) { onLoadChargePlan() }
 
-    val locked = snap?.locked
+    // 乐观状态优先：点完立刻反映，观察期结束交还车端信号
+    val locked = pendingLock ?: snap?.locked
     val soc = snap?.socPrecise ?: 0.0
     val busyOrNot = busy != null
 

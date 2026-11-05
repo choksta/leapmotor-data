@@ -106,6 +106,9 @@ fun CarScreen(
     loading: Boolean,
     error: String?,
     polling: Boolean,
+    /** 乐观状态：非空时优先于车端信号，点完立刻反映（仅影响显示，不触发任何指令）。 */
+    pendingLock: Boolean? = null,
+    pendingTrunk: Boolean? = null,
     onRefresh: () -> Unit,
     onLogout: () -> Unit = {},
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
@@ -214,7 +217,7 @@ fun CarScreen(
             }
         }
 
-        item { KeyMetrics(snap) }
+        item { KeyMetrics(snap, pendingLock) }
 
         // 车身：胎压 + 车门车窗合成一块。
         // 原来 6 张同底色的卡片连续排列，视觉上分不出"这组讲什么"，
@@ -391,7 +394,7 @@ private fun GroupCard(g: InfoGroup, collapsible: Boolean = false) {
  * 充电 / 胎压 / 车门 / 空调 —— 驻车时最常确认的四件事。
  */
 @Composable
-private fun KeyMetrics(snap: CarSnapshot) {
+private fun KeyMetrics(snap: CarSnapshot, pendingLock: Boolean? = null) {
     // ⚠️ 不能用 chargeState.contains("插枪") 判断：字符串"未插枪"也含"插枪"，
     // 会永远判成已插枪。必须按信号值判：1=充电中 / 2·3·4=已插枪 / 0·5=未插枪。
     val cc = snap.i("charge_connection")
@@ -425,13 +428,13 @@ private fun KeyMetrics(snap: CarSnapshot) {
         )
         Metric(
             label = "车门",
-            value = when (snap.locked) {
+            value = when (pendingLock ?: snap.locked) {
                 true -> "已锁"
                 false -> "未锁"
                 null -> "--"
             },
-            highlight = snap.locked == true,
-            warn = snap.locked == false,
+            highlight = (pendingLock ?: snap.locked) == true,
+            warn = (pendingLock ?: snap.locked) == false,
             modifier = Modifier.weight(1f)
         )
         Metric(
@@ -595,7 +598,7 @@ private fun TireGauge(label: String, kpa: Double?, alarm: Boolean) {
  * 车门/后备箱/遮阳帘用状态块，异常（开着）标红。
  */
 @Composable
-private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false) {
+private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false, pendingLock: Boolean? = null, pendingTrunk: Boolean? = null) {
     val windows = listOf(
         "左前" to snap.d("window_percent_left_front"),
         "右前" to snap.d("window_percent_right_front"),
@@ -603,7 +606,8 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false) {
         "右后" to snap.d("window_percent_right_rear"),
     )
     val anyWindowOpen = windows.any { (it.second ?: 0.0) > 0.0 }
-    val trunkOpen = snap.i("trunk_open") == 1
+    val locked = pendingLock ?: snap.locked
+    val trunkOpen = pendingTrunk ?: (snap.i("trunk_open") == 1)
     val sunshade = snap.d("sunshade_percent")
 
     BodyContainer(bare) {
@@ -628,7 +632,7 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false) {
 
             // 状态块
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StateChip("车锁", if (snap.locked == true) "已锁" else "未锁", snap.locked != true, Modifier.weight(1f))
+                StateChip("车锁", if (locked == true) "已锁" else "未锁", locked != true, Modifier.weight(1f))
                 StateChip("后备箱", if (trunkOpen) "开启" else "关闭", trunkOpen, Modifier.weight(1f))
                 StateChip(
                     "遮阳帘",

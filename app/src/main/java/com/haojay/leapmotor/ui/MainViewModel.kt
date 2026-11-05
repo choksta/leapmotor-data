@@ -15,6 +15,8 @@ import com.haojay.leapmotor.data.SessionStore
 import com.haojay.leapmotor.data.SettingsStore
 import com.haojay.leapmotor.data.TrendData
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -58,6 +60,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var pendingAcOn by mutableStateOf<Boolean?>(null)
         private set
 
+    /** 车门锁的乐观状态：点完立刻反映，观察期结束交还真实值。 */
+    var pendingLock by mutableStateOf<Boolean?>(null)
+        private set
+
+    /** 后备箱的乐观状态。 */
+    var pendingTrunk by mutableStateOf<Boolean?>(null)
+        private set
+
     // ---- 登录态 ----
     var loginBusy by mutableStateOf(false)
         private set
@@ -76,6 +86,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val hasPin: Boolean get() = !session?.operatePwd.isNullOrEmpty()
 
     // ---------------- 前台自适应轮询 ----------------
+
+    /** 当前正在跑的观察期协程；新指令会取消它，保证同一时刻只有一条。 */
+    private var observeJob: Job? = null
 
     private val poller = Poller {
         val sess = session ?: error("未登录")
@@ -215,21 +228,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * 下发车控指令。三层结构：
+     *
+     *   1. 乐观更新——点完立即改界面，不等车端
+     *   2. 观察期——拉车况直到「目标字段达成」，达成即停，30 秒兜底
+     *   3. 交还真实状态——观察结束把乐观值清掉
+     *
+     * ⚠️ 观察期必须单例。`busyCommand` 在下发返回时就释放了，用户可以在观察期内再点一次；
+     * 若不取消上一条观察协程，两条循环会同时写 snapshot，而且**先结束的那条会把后一条
+     * 指令的乐观状态清掉**，表现是界面闪一下又跳回旧值。
+     */
     fun sendCommand(cmdId: Int, state: Map<String, Any?>) {
         val sess = session ?: run { message = "未登录"; return }
         if (busyCommand != null) return
         busyCommand = cmdId
 
-        // 乐观更新：点完立刻给反馈，不等车端（车端执行要 10~20 秒）
-        when (cmdId) {
-            170 -> when (state["operate"] as? String) {
-                "off" -> pendingAcOn = false
-                "manual", "auto" -> pendingAcOn = true
-            }
-            301, 370 -> Unit   // 座椅档位刷新较快，不做乐观处理
-        }
+        applyOptimistic(cmdId, state)
 
-        viewModelScope.launch {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
             val (ok, msg) = withContext(Dispatchers.IO) {
                 runCatching {
                     withAuthRetry(sess) { repo.sendCommand(it, cmdId, state) }
@@ -238,23 +256,78 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             message = msg
             busyCommand = null
             if (!ok) {
-                pendingAcOn = null   // 失败立即回滚
+                clearOptimistic(cmdId)   // 失败立即回滚
                 return@launch
             }
-            // 观察期：车端执行约 10~20 秒。每 2 秒查一次，持续 30 秒。
-            // ⚠️ 不能用 `signalTime 前进` 作为停止条件：车机收到指令后会先上报
-            // 一个"中间帧"（sts 变了但目标状态还没生效），据此 break 会让界面
-            // 停在旧状态，看起来像"指令没生效"。
-            repeat(15) {
-                delay(2_000)
+
+            // 前 8 秒 1.5 秒一次（指令刚下去，车端变化最快），之后 3 秒一次，30 秒封顶。
+            // 一旦目标字段达成即退出，不再空跑剩下的时间。
+            var waited = 0L
+            while (waited < 30_000L && isActive) {
+                val step = if (waited < 8_000L) 1_500L else 3_000L
+                delay(step)
+                waited += step
                 val s = withContext(Dispatchers.IO) {
                     runCatching { repo.fetchSnapshot(sess) }.getOrNull()
-                } ?: return@repeat
+                } ?: continue
                 snapshot = s
                 error = null
+                if (targetReached(s, cmdId, state)) break
             }
-            // 观察期结束，乐观状态交还给真实状态
-            pendingAcOn = null
+            clearOptimistic(cmdId)
+        }
+    }
+
+    private fun applyOptimistic(cmdId: Int, state: Map<String, Any?>) {
+        when (cmdId) {
+            110 -> pendingLock = when (state["value"]) {
+                "lock" -> true
+                "unlock" -> false
+                else -> null
+            }
+            130 -> pendingTrunk = when (state["value"]) {
+                "true" -> true
+                "false" -> false
+                else -> null
+            }
+            170 -> when (state["operate"] as? String) {
+                "off" -> pendingAcOn = false
+                "manual" -> pendingAcOn = true
+                "auto" -> pendingAcOn = true
+            }
+        }
+    }
+
+    private fun clearOptimistic(cmdId: Int) {
+        when (cmdId) {
+            110 -> pendingLock = null
+            130 -> pendingTrunk = null
+            170 -> pendingAcOn = null
+        }
+    }
+
+    /**
+     * 目标字段是否已达成指令期望值。
+     *
+     * 只对信号语义已确认的指令做判断，其余一律返回 false —— 继续跑到 30 秒兜底。
+     * **宁可多等，不可提前判定成功**：提前判定会让界面显示一个并未真正生效的状态。
+     */
+    private fun targetReached(s: CarSnapshot, cmdId: Int, state: Map<String, Any?>): Boolean {
+        return when (cmdId) {
+            110 -> s.locked == (state["value"] == "lock")
+            130 -> (s.i("trunk_open") == 1) == (state["value"] == "true")
+            170 -> (s.i("climate_on") == 1) == (state["operate"] != "off")
+            400 -> (s.i("sentry_mode") == 1) == (state["value"] == "on")
+            301, 370 -> {
+                val level = (state["level"] as? String)?.toIntOrNull() ?: return false
+                val key = when (state["position"]) {
+                    "driver" -> if (cmdId == 301) "seat_heat_driver" else "seat_vent_driver"
+                    "passenger" -> if (cmdId == 301) "seat_heat_passenger" else "seat_vent_passenger"
+                    else -> return false
+                }
+                s.i(key) == level
+            }
+            else -> false
         }
     }
 
