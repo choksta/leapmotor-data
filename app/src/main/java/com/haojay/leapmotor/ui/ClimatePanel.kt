@@ -89,14 +89,14 @@ fun ClimatePanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "空调",
-                    fontSize = 14.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     if (acOn) "运行中" else "已关闭",
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     color = if (acOn) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -105,12 +105,12 @@ fun ClimatePanel(
 
             // 温度
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("温度", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("温度", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.weight(1f))
                 StepBtn("−", !locked) { sendAc("manual", t = (temp - 1).coerceAtLeast(16)) }
                 Text(
                     "$temp°C",
-                    fontSize = 22.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(horizontal = 14.dp)
                 )
@@ -120,12 +120,12 @@ fun ClimatePanel(
 
             // 风量
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("风量", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("风量", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.weight(1f))
                 StepBtn("−", !locked && fan > 1) { sendAc("manual", f = (fan - 1).coerceAtLeast(1)) }
                 Text(
                     "$fan 档",
-                    fontSize = 22.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(horizontal = 14.dp)
                 )
@@ -190,7 +190,7 @@ fun ClimatePanel(
                                 interactionSource = modeSources[i],
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text(label, fontSize = 14.sp)
+                                Text(label, fontSize = 16.sp)
                             }
                         },
                         menuContent = { Text(label) }
@@ -224,7 +224,7 @@ fun ClimatePanel(
             Spacer(Modifier.height(16.dp))
             Text(
                 "座椅与舒适件",
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
@@ -299,7 +299,7 @@ private fun StepBtn(text: String, enabled: Boolean, onClick: () -> Unit) {
     ) {
         Text(
             text,
-            fontSize = 16.sp,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
             color = if (enabled) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
@@ -326,7 +326,7 @@ private fun ModeChip(
     ) {
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 16.sp,
             fontWeight = if (active) FontWeight.Medium else FontWeight.Normal,
             color = when {
                 active -> MaterialTheme.colorScheme.onPrimary
@@ -353,7 +353,7 @@ private fun SeatRow(
     ) {
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f)
         )
@@ -379,7 +379,7 @@ private fun SeatRow(
         Spacer(Modifier.width(8.dp))
         Text(
             if (lv == 0) "关" else "$lv 档",
-            fontSize = 12.sp,
+            fontSize = 14.sp,
             color = if (lv > 0) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(38.dp)

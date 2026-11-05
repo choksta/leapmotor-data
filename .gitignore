@@ -37,3 +37,8 @@ app_session*.json
 # 日志与临时产物
 *.log
 *.hprof
+
+# 调试产物（adb 截图 / uiautomator dump）
+/*.xml
+/n*.png
+/debug_*.png
