@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haojay.leapmotor.data.TrendData
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
@@ -121,15 +120,12 @@ fun TrendScreen(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                LinearWavyProgressIndicator(
-                    progress = {
-                        // 分母用 30 而不是车龄：云端只返回近 30 天数据，
-                        // 拿 463 天当分母会让进度条永远接近空，失去表达意义。
-                        (trend.activeDays.toFloat() / 30f).coerceIn(0f, 1f)
-                    },
-                    modifier = Modifier.fillMaxWidth().height(12.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                RatioBar(
+                    // 分母用 30 而不是车龄：云端只返回近 30 天数据，
+                    // 拿 463 天当分母会让进度条永远接近空，失去表达意义。
+                    fraction = trend.activeDays.toFloat() / 30f,
+                    modifier = Modifier.fillMaxWidth(),
+                    height = 14.dp,
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {

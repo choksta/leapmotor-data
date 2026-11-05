@@ -38,7 +38,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -202,11 +201,10 @@ fun CarScreen(
                     )
                 }
                 Spacer(Modifier.height(12.dp))
-                LinearWavyProgressIndicator(
-                    progress = { ((snap.socPrecise ?: 0.0) / 100.0).toFloat().coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth().height(12.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                SocBar(
+                    soc = snap.socPrecise ?: 0.0,
+                    modifier = Modifier.fillMaxWidth(),
+                    height = 14.dp,
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {

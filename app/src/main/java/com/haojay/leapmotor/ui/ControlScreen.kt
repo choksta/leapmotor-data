@@ -41,7 +41,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -361,12 +360,7 @@ private fun StatusHero(snap: CarSnapshot?, locked: Boolean?, soc: Double) {
             )
         }
         Spacer(Modifier.height(14.dp))
-        LinearWavyProgressIndicator(
-            progress = { (soc / 100.0).toFloat().coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth().height(14.dp),
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        )
+        SocBar(soc = soc, modifier = Modifier.fillMaxWidth(), height = 16.dp)
     }
 }
 
