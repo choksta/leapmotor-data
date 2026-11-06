@@ -207,11 +207,7 @@ fun CarScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.weight(1f))
-                        Text(
-                            since(updatedAt?.value ?: 0L),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        UpdatedAgo(updatedAt)
                     }
                     Spacer(Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
@@ -1267,11 +1263,7 @@ private fun LocationCard(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
-                Text(
-                    since(updatedAt?.value ?: 0L),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                UpdatedAgo(updatedAt)
             }
             Spacer(Modifier.height(10.dp))
 
@@ -1506,4 +1498,30 @@ private fun BodyContainer(bare: Boolean, content: @Composable () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) { content() }
     }
+}
+
+/**
+ * "更新于 X 前"。时间取自车端最近一次上报，不是本地拉取时刻 —— 用本地时刻会出现
+ * 永远显示"刚刚"、和官方 App 对不上的问题。
+ *
+ * 因为信号没变时整页不重组，这个文本自己每 30 秒重算一次；
+ * 只有它重组，卡片不受影响。
+ */
+@Composable
+private fun UpdatedAgo(at: androidx.compose.runtime.State<Long>?) {
+    val stamp = at?.value ?: 0L
+    // 只在"显示文字真的变了"时才更新状态：轮询不重组页面之后，相对时间得自己走，
+    // 但没必要每 30 秒都重画一次 —— 一分钟一条，文字不变就一个帧都不画。
+    val label by androidx.compose.runtime.produceState(since(stamp), stamp) {
+        while (true) {
+            val next = since(stamp)
+            if (next != value) value = next
+            kotlinx.coroutines.delay(15_000)
+        }
+    }
+    Text(
+        label,
+        fontSize = 12.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }

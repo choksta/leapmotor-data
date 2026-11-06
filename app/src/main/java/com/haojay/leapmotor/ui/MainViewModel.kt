@@ -61,7 +61,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 统一的快照落地口：信号值没变就沿用旧对象，让 Compose 跳过卡片重组。 */
     private fun publishSnapshot(s: CarSnapshot) {
-        _lastUpdateAt.value = maxOf(s.signalTime, s.collectTime)
+        // 显示的是"车端最后一次上报的时间"，不是我们拉取的时刻。
+        // collectTime 每次请求都是新的，用它会让界面永远显示"刚刚"（与官方 App 不一致）。
+        _lastUpdateAt.value = if (s.signalTime > 0) s.signalTime else s.collectTime
         val old = snapshot
         if (old == null || old.signals != s.signals) snapshot = s
     }
