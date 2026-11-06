@@ -144,7 +144,7 @@ fun CarScreen(
                     error != null -> error
                     else -> "暂无数据"
                 },
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (error != null && !loading) {
@@ -192,14 +192,14 @@ fun CarScreen(
                         Spacer(Modifier.width(7.dp))
                         Text(
                             chip,
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
                             since(snap.signalTime),
-                            fontSize = 14.sp,
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -207,7 +207,7 @@ fun CarScreen(
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             "%.0f".format(snap.socPrecise ?: 0.0),
-                            fontSize = 62.sp,
+                            fontSize = 56.sp,
                             fontWeight = FontWeight.Light,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -221,7 +221,7 @@ fun CarScreen(
                         Spacer(Modifier.weight(1f))
                         Text(
                             Values.km(snap.rangeLive),
-                            fontSize = 18.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = 8.dp)
@@ -242,8 +242,6 @@ fun CarScreen(
                 }
             }
         }
-
-        item { KeyMetrics(snap, pendingLock) }
 
         // 车身：胎压 + 车门车窗合成一块。
         // 原来 6 张同底色的卡片连续排列，视觉上分不出"这组讲什么"，
@@ -301,7 +299,7 @@ fun CarScreen(
                 Spacer(Modifier.width(6.dp))
                 Text(
                     if (polling) "前台刷新中 · 行驶 6 秒 / 其余 30 秒" else "自动刷新已暂停",
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -322,7 +320,7 @@ fun CarScreen(
                     }
                     Text(
                         if (loading) "刷新中…" else "刷新车况",
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         color = if (loading) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.primary
                     )
@@ -334,7 +332,7 @@ fun CarScreen(
             ) {
                 Text(
                     "退出登录",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.error
                 )
             }
@@ -347,12 +345,12 @@ private fun MiniStat(label: String, value: String) {
     Column {
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
         )
         Text(
             value,
-            fontSize = 18.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onPrimaryContainer
         )
@@ -383,7 +381,7 @@ private fun GroupCard(g: InfoGroup, collapsible: Boolean = false) {
             ) {
                 Text(
                     g.title,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
@@ -391,7 +389,7 @@ private fun GroupCard(g: InfoGroup, collapsible: Boolean = false) {
                 if (collapsible) {
                     Text(
                         if (expanded) "收起" else "${g.rows.size} 项 · 展开",
-                        fontSize = 14.sp,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -408,13 +406,13 @@ private fun GroupCard(g: InfoGroup, collapsible: Boolean = false) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         row.label,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
                     )
                     Text(
                         row.value,
-                        fontSize = 18.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -424,117 +422,21 @@ private fun GroupCard(g: InfoGroup, collapsible: Boolean = false) {
     }
 }
 
-/**
- * 关键指标四宫格：把"一眼要知道的"从长列表里提出来。
- * 充电 / 胎压 / 车门 / 空调 —— 驻车时最常确认的四件事。
- */
-@Composable
-private fun KeyMetrics(snap: CarSnapshot, pendingLock: Boolean? = null) {
-    // ⚠️ 不能用 chargeState.contains("插枪") 判断：字符串"未插枪"也含"插枪"，
-    // 会永远判成已插枪。必须按信号值判：1=充电中 / 2·3·4=已插枪 / 0·5=未插枪。
-    val cc = snap.i("charge_connection")
-    val chargeLabel = when {
-        cc == 1 -> "充电中"
-        cc != null && cc in 2..4 -> "已插枪"
-        else -> "未插枪"
-    }
-    val tires = listOfNotNull(
-        snap.d("tire_fl"), snap.d("tire_fr"), snap.d("tire_rl"), snap.d("tire_rr")
-    )
-    val tireMin = tires.minOrNull()
-    val tireAbnormal = listOf(
-        snap.i("tire_alarm_fl"), snap.i("tire_alarm_fr"),
-        snap.i("tire_alarm_rl"), snap.i("tire_alarm_rr")
-    ).any { it == 1 }
-    val acOn = snap.i("climate_on") == 1
-
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Metric(
-            label = "充电",
-            value = chargeLabel,
-            highlight = snap.isCharging,
-            modifier = Modifier.weight(1f)
-        )
-        Metric(
-            label = "胎压",
-            value = tireMin?.let { "%.2f".format(it / 100.0) } ?: "--",
-            warn = tireAbnormal,
-            modifier = Modifier.weight(1f)
-        )
-        Metric(
-            label = "车门",
-            value = when (pendingLock ?: snap.locked) {
-                true -> "已锁"
-                false -> "未锁"
-                null -> "--"
-            },
-            highlight = (pendingLock ?: snap.locked) == true,
-            warn = (pendingLock ?: snap.locked) == false,
-            modifier = Modifier.weight(1f)
-        )
-        Metric(
-            label = "空调",
-            value = if (acOn) "运行中" else "关闭",
-            highlight = acOn,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun Metric(
-    label: String,
-    value: String,
-    unit: String = "",
-    highlight: Boolean = false,
-    warn: Boolean = false,
-    modifier: Modifier = Modifier,
-) {
-    val color = when {
-        warn -> MaterialTheme.colorScheme.error
-        highlight -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.onSurface
-    }
-    Card(
-        shape = MaterialTheme.shapes.large,
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
-    ) {
-        Column(Modifier.padding(horizontal = 10.dp, vertical = 11.dp)) {
-            // 单位跟随标签行：四宫格单列仅约 75dp 宽，系统字号放大到 1.3x 时
-            // "2.53 bar" 放不下，单位会被折行再裁掉。标签行高度自适应，折行安全。
-            Text(
-                if (unit.isEmpty()) label else "$label · $unit",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 0.5.sp,
-                maxLines = 2,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(3.dp))
-            Text(
-                value,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                softWrap = false,
-                color = color
-            )
-        }
-    }
-}
-
-
 @Composable
 private fun TireCard(snap: CarSnapshot, bare: Boolean = false) {
+    val cells = listOf(
+        Triple("左前", snap.d("tire_fl"), snap.i("tire_alarm_fl") == 1),
+        Triple("右前", snap.d("tire_fr"), snap.i("tire_alarm_fr") == 1),
+        Triple("左后", snap.d("tire_rl"), snap.i("tire_alarm_rl") == 1),
+        Triple("右后", snap.d("tire_rr"), snap.i("tire_alarm_rr") == 1),
+    )
+
     BodyContainer(bare) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "胎压",
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     letterSpacing = 0.6.sp,
                     color = MaterialTheme.colorScheme.primary,
@@ -542,87 +444,65 @@ private fun TireCard(snap: CarSnapshot, bare: Boolean = false) {
                 )
                 Text(
                     "建议 2.3–2.8 bar",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(Modifier.height(14.dp))
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                TireGauge("左前", snap.d("tire_fl"), snap.i("tire_alarm_fl") == 1)
-                TireGauge("右前", snap.d("tire_fr"), snap.i("tire_alarm_fr") == 1)
-            }
             Spacer(Modifier.height(10.dp))
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                TireGauge("左后", snap.d("tire_rl"), snap.i("tire_alarm_rl") == 1)
-                TireGauge("右后", snap.d("tire_rr"), snap.i("tire_alarm_rr") == 1)
+            // 四个环形仪表占掉近三分之一屏，却只表达"在不在范围内"。
+            // 换成一行数值 + 一条细轨：同样的信息，高度从 ~340dp 降到 ~60dp。
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                cells.forEach { (label, kpa, alarm) ->
+                    TireCell(label, kpa, alarm, Modifier.weight(1f))
+                }
             }
         }
     }
 }
 
-/** 单轮环形仪表：270° 弧，量程 0~3.0 bar。 */
 @Composable
-private fun TireGauge(label: String, kpa: Double?, alarm: Boolean) {
+private fun TireCell(label: String, kpa: Double?, alarm: Boolean, modifier: Modifier = Modifier) {
     val bar = kpa?.div(100.0)
-    val frac = ((kpa ?: 0.0) / 300.0).toFloat().coerceIn(0f, 1f)
+    // 环改条之后颜色要更克制：正常态用主色，仅低值/报警时才变警示色
     val low = bar != null && bar < 2.3
     val bad = alarm || low
-    val arcColor = if (bad) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val color = if (bad) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(contentAlignment = Alignment.Center) {
-            Canvas(Modifier.size(78.dp)) {
-                val stroke = 7.dp.toPx()
-                val inset = stroke / 2
-                val arcSize = Size(size.width - stroke, size.height - stroke)
-                drawArc(
-                    color = trackColor,
-                    startAngle = 135f,
-                    sweepAngle = 270f,
-                    useCenter = false,
-                    style = Stroke(stroke, cap = StrokeCap.Round),
-                    topLeft = Offset(inset, inset),
-                    size = arcSize
-                )
-                drawArc(
-                    color = arcColor,
-                    startAngle = 135f,
-                    sweepAngle = 270f * frac,
-                    useCenter = false,
-                    style = Stroke(stroke, cap = StrokeCap.Round),
-                    topLeft = Offset(inset, inset),
-                    size = arcSize
-                )
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    // 两位小数：253kPa → 2.53 bar，比一位小数更容易看出缓慢漏气
-                    bar?.let { "%.2f".format(it) } ?: "--",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (bad) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    "bar",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Spacer(Modifier.height(4.dp))
+    Column(modifier) {
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(Modifier.height(2.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                bar?.let { "%.2f".format(it) } ?: "--",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (bad) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                " bar",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 3.dp)
+            )
+        }
+        Spacer(Modifier.height(5.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.extraSmall)
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(((kpa ?: 0.0) / 300.0).toFloat().coerceIn(0f, 1f))
+                    .height(3.dp)
+                    .background(color, MaterialTheme.shapes.extraSmall)
+            )
+        }
     }
 }
 
@@ -654,7 +534,7 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false, pendingLock: B
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "车身",
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     letterSpacing = 0.6.sp,
                     color = MaterialTheme.colorScheme.primary,
@@ -662,35 +542,41 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false, pendingLock: B
                 )
                 Text(
                     if (ajar || trunkOpen) "有开启项" else "全部闭合",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     color = if (ajar || trunkOpen) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Spacer(Modifier.height(12.dp))
 
-            // 状态块
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StateChip("车锁", if (locked == true) "已锁" else "未锁", locked != true, Modifier.weight(1f))
-                StateChip("后备箱", if (trunkOpen) "开启" else "关闭", trunkOpen, Modifier.weight(1f))
-                StateChip("充电枪", if (plugIn) "已插入" else "未插入", false, Modifier.weight(1f))
-                StateChip(
-                    "遮阳帘",
-                    sunshade?.let { "%.0f%%".format(it) } ?: "--",
-                    false,
-                    Modifier.weight(1f)
-                )
-            }
-
-            Spacer(Modifier.height(14.dp))
-            Text(
-                "车窗",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            // 原来是四个灰底状态块，和下面车窗条形成"块中有块"。改成两列「标签—值」，
+            // 只有异常值才上色 —— 正常态集体抢注意力，等于没有重点。
+            BodyRow(
+                left = "车锁" to if (locked == true) "已锁" else "未锁",
+                leftWarn = locked != true,
+                right = "后备箱" to if (trunkOpen) "开启" else "关闭",
+                rightWarn = trunkOpen,
             )
             Spacer(Modifier.height(8.dp))
+            BodyRow(
+                left = "充电枪" to if (plugIn) "已插入" else "未插入",
+                leftWarn = false,
+                right = "遮阳帘" to (sunshade?.let { "%.0f%%".format(it) } ?: "--"),
+                rightWarn = false,
+            )
+
+            Spacer(Modifier.height(8.dp))
+            // 右侧原本空着，把哨兵状态放进来：三行两列都是满的，扫视时不会出现断口
+            val sentryOn = snap.i("sentry_mode") == 1
+            BodyRow(
+                left = "车窗" to if (ajar) "有开启" else "全部关闭",
+                leftWarn = ajar,
+                right = "哨兵" to if (sentryOn) "已开启" else "未开启",
+                rightWarn = false,
+            )
 
             if (anyPct) {
+                Spacer(Modifier.height(10.dp))
                 windows.forEach { (label, pct) ->
                     WindowBar(label, pct ?: 0.0)
                     Spacer(Modifier.height(7.dp))
@@ -699,13 +585,6 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false, pendingLock: B
                 // 车端没报开度时，不摆四根空条——那会让人以为"四窗都关着"，
                 // 而实际上可能只是这一型车不提供百分比。
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        if (ajar) "有车窗开启" else "四窗关闭",
-                        fontSize = 14.sp,
-                        fontWeight = if (ajar) FontWeight.Medium else FontWeight.Normal,
-                        color = if (ajar) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurface
-                    )
                     if (ajar) {
                         Spacer(Modifier.weight(1f))
                         Text(
@@ -720,30 +599,42 @@ private fun CarBodyCard(snap: CarSnapshot, bare: Boolean = false, pendingLock: B
     }
 }
 
+/**
+ * 车身一行的两组「标签—值」。
+ *
+ * 不用色块：车身卡内部已经有分隔线和车窗条，再铺一层浅底块会形成"块中有块"，
+ * 边界反而更糊。异常值单独上警示色，正常值保持普通文字色。
+ */
 @Composable
-private fun StateChip(label: String, value: String, warn: Boolean, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .background(
-                if (warn) MaterialTheme.colorScheme.errorContainer
-                else MaterialTheme.colorScheme.surfaceContainerHighest,
-                MaterialTheme.shapes.medium
-            )
-            .padding(horizontal = 11.dp, vertical = 9.dp)
-    ) {
+private fun BodyRow(
+    left: Pair<String, String>,
+    leftWarn: Boolean,
+    right: Pair<String, String>,
+    rightWarn: Boolean,
+) {
+    Row(Modifier.fillMaxWidth()) {
+        BodyCell(left.first, left.second, leftWarn, Modifier.weight(1f))
+        Spacer(Modifier.width(12.dp))
+        BodyCell(right.first, right.second, rightWarn, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun BodyCell(label: String, value: String, warn: Boolean, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        // 标签固定 56dp：用 weight 把值推到列尾的话，左列的"值"会和右列的"标签"
+        // 贴在一起，读起来像四个词连成一串。定宽后每列自成一组。
         Text(
             label,
-            fontSize = 13.sp,
-            color = if (warn) MaterialTheme.colorScheme.onErrorContainer
-            else MaterialTheme.colorScheme.onSurfaceVariant
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(58.dp)
         )
-        Spacer(Modifier.height(2.dp))
         Text(
             value,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (warn) MaterialTheme.colorScheme.error
-            else MaterialTheme.colorScheme.onSurface
+            fontSize = 15.sp,
+            fontWeight = if (warn) FontWeight.Medium else FontWeight.Normal,
+            color = if (warn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -755,7 +646,7 @@ private fun WindowBar(label: String, pct: Double) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(30.dp)
         )
@@ -782,7 +673,7 @@ private fun WindowBar(label: String, pct: Double) {
         }
         Text(
             if (open) "%.0f%%".format(pct) else "关",
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             color = if (open) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(38.dp).padding(start = 8.dp)
@@ -791,166 +682,85 @@ private fun WindowBar(label: String, pct: Double) {
 }
 
 /**
- * 电池与充电：环形 SOC + 续航对比条 + 电池温度色带。
+ * 电池与充电：电池温度 + 充电过程 / 健康充电 / 电池加热，充电时展开电压电流。
  *
- * 为什么用环形：SOC 是"还剩多少"的比例问题，环形比 58.1% 更容易一眼判断。
- * 续航用双条对比：实时值 / CLTC 标称，能看出当前工况打了多少折。
+ * 电量与续航不在这里重复 —— 顶层大卡已经画过，同一数据换种画法只会让人挑一个看。
  */
 @Composable
 private fun BatteryCard(snap: CarSnapshot, bare: Boolean = false) {
-    val arcTrack = MaterialTheme.colorScheme.surfaceContainerHighest
-    val arcPrimary = MaterialTheme.colorScheme.primary
-    val soc = snap.socPrecise ?: 0.0
-    val live = snap.rangeLive ?: 0.0
-    // 3262 决定车端表显跟的是哪套工况：0=CLTC，1=WLTC（缺失按 WLTC，与参考实现一致）。
-    // 两套工况的值都取出来并列显示——差 90 km 是标准差异，不是车况差异，
-    // 只给一条会让人以为"续航掉了"。
-    val modeCode = snap.i("range_mode_code")
-    val ratedLabel = if (modeCode != 0) "WLTC" else "CLTC"
     val battTemp = snap.d("battery_min_temp")
     val cc = snap.i("charge_connection")
     val volt = snap.d("charging_voltage")
     val amp = snap.d("charging_current")
 
     BodyContainer(bare) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
-            Text(
-                "电池与充电",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(Modifier.height(14.dp))
-
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 环形 SOC
-                Box(contentAlignment = Alignment.Center) {
-                    Canvas(Modifier.size(96.dp)) {
-                        val stroke = 9.dp.toPx()
-                        val inset = stroke / 2
-                        val arcSize = Size(size.width - stroke, size.height - stroke)
-                        drawArc(
-                            color = arcTrack,
-                            startAngle = 135f,
-                            sweepAngle = 270f,
-                            useCenter = false,
-                            style = Stroke(stroke, cap = StrokeCap.Round),
-                            topLeft = Offset(inset, inset),
-                            size = arcSize
-                        )
-                        drawArc(
-                            color = arcPrimary,
-                            startAngle = 135f,
-                            sweepAngle = 270f * (soc / 100.0).toFloat().coerceIn(0f, 1f),
-                            useCenter = false,
-                            style = Stroke(stroke, cap = StrokeCap.Round),
-                            topLeft = Offset(inset, inset),
-                            size = arcSize
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "%.1f".format(soc),
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Text("%", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                Spacer(Modifier.width(18.dp))
-
-                // 续航对比：实时 / WLTC / CLTC 三条一起给
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "续航",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.weight(1f))
-                        // 只标"表显跟的是哪套工况"，不给某一条单独打标记：
-                        // 三条并列时，多一个标记反而更难扫读
-                        Text(
-                            "表显 $ratedLabel",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    val wltc = snap.d("range_ev_wltc") ?: 0.0
-                    val cltc = snap.d("range_ev_cltc") ?: 0.0
-                    // 统一刻度：三条长度才能直接比。取三者最大，避免小值条一直是满的
-                    val scale = maxOf(wltc, cltc, live, 1.0)
-                    RangeBar("实时", live, scale, highlight = true)
-                    Spacer(Modifier.height(6.dp))
-                    RangeBar("WLTC", wltc, scale, highlight = false)
-                    Spacer(Modifier.height(6.dp))
-                    RangeBar("CLTC", cltc, scale, highlight = false)
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-            // 电池温度色带
-            battTemp?.let { t ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("电池温度", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.width(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(6.dp)
-                            .background(
-                                MaterialTheme.colorScheme.surfaceContainerHighest,
-                                MaterialTheme.shapes.extraSmall
-                            )
-                    ) {
-                        // -10~50°C 映射到 0~1
-                        val frac = ((t + 10) / 60.0).toFloat().coerceIn(0f, 1f)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(frac)
-                                .height(6.dp)
-                                .background(
-                                    when {
-                                        t < 0 -> MaterialTheme.colorScheme.tertiary
-                                        t > 40 -> MaterialTheme.colorScheme.error
-                                        else -> MaterialTheme.colorScheme.primary
-                                    },
-                                    MaterialTheme.shapes.extraSmall
-                                )
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
+                Text(
+                    "电池与充电",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 0.6.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                // 温度放到标题行右侧：它是个"环境读数"，不需要单独占一行
+                battTemp?.let { t ->
                     Text(
                         "%.0f°C".format(t),
-                        fontSize = 14.sp,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = when {
+                            t < 0 || t > 40 -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
                     )
                 }
-                Spacer(Modifier.height(12.dp))
+            }
+            // 温度色带：-10~50°C 映射到 0~1，只用它表达"偏冷/偏热"的倾向
+            battTemp?.let { t ->
+                Spacer(Modifier.height(6.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.extraSmall)
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(((t + 10) / 60.0).toFloat().coerceIn(0f, 1f))
+                            .height(3.dp)
+                            .background(
+                                when {
+                                    t < 0 -> MaterialTheme.colorScheme.tertiary
+                                    t > 40 -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.colorScheme.primary
+                                },
+                                MaterialTheme.shapes.extraSmall
+                            )
+                    )
+                }
             }
 
-            // 充电信息：充电时才展开电压电流
-            if (cc == 1) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MiniMetric("电压", volt?.let { "%.0f V".format(it) } ?: "--", Modifier.weight(1f))
-                    MiniMetric("电流", amp?.let { "%.0f A".format(it) } ?: "--", Modifier.weight(1f))
-                    MiniMetric(
+            Spacer(Modifier.height(12.dp))
+            // 用纯文字三列，不再铺浅色小块：卡片内再套色块是"乱"的来源之一
+            Row(Modifier.fillMaxWidth()) {
+                if (cc == 1) {
+                    PlainMetric("电压", volt?.let { "%.0f V".format(it) } ?: "--", Modifier.weight(1f))
+                    PlainMetric("电流", amp?.let { "%.0f A".format(it) } ?: "--", Modifier.weight(1f))
+                    PlainMetric(
                         "功率",
                         if (volt != null && amp != null) "%.1f kW".format(volt * amp / 1000.0) else "--",
                         Modifier.weight(1f)
                     )
-                }
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // 「充电过程」而不是「充电状态」：车身卡已经有一个「充电枪」表示枪插没插，
-                    // 这里说的是充电进行到哪一步（充电中 / 待机 / 未插枪），两个是不同信号。
-                    MiniMetric("充电过程", Values.chargeState(snap.d("charge_connection")), Modifier.weight(1f))
-                    MiniMetric(
+                } else {
+                    PlainMetric("充电过程", Values.chargeState(snap.d("charge_connection")), Modifier.weight(1f))
+                    PlainMetric(
                         "健康充电",
                         if (snap.i("healthy_charging") == 1) "开启" else "关闭",
                         Modifier.weight(1f)
                     )
-                    MiniMetric(
+                    PlainMetric(
                         "电池加热",
                         if (snap.i("battery_heating") == 1) "加热中" else "未启用",
                         Modifier.weight(1f)
@@ -961,65 +771,21 @@ private fun BatteryCard(snap: CarSnapshot, bare: Boolean = false) {
     }
 }
 
+/** 卡片内的三列读数：只有文字，没有底色。 */
 @Composable
-private fun RangeBar(label: String, value: Double, max: Double, highlight: Boolean) {
-    val frac = if (max > 0) (value / max).toFloat().coerceIn(0f, 1f) else 0f
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            label,
-            fontSize = 13.sp,
-            maxLines = 1,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(42.dp)
-        )
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(7.dp)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.extraSmall)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(frac)
-                    .height(7.dp)
-                    .background(
-                        if (highlight) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.outlineVariant,
-                        MaterialTheme.shapes.extraSmall
-                    )
-            )
-        }
-        Text(
-            "%.0f km".format(value),
-            fontSize = 14.sp,
-            maxLines = 1,
-            softWrap = false,
-            textAlign = androidx.compose.ui.text.style.TextAlign.End,
-            // 字号放大后 58dp 放不下 "284 km"，会折成两行
-            modifier = Modifier.width(76.dp).padding(start = 8.dp)
-        )
-    }
-}
-
-@Composable
-private fun MiniMetric(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium)
-            .padding(horizontal = 10.dp, vertical = 9.dp)
-    ) {
-        Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun PlainMetric(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Medium, )
+        Text(
+            value,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
-/**
- * 行驶与里程：挡位盘 + 里程大字 + 状态点。
- *
- * 挡位用 P/R/N/D 四个圆点表示，当前挡位实心高亮——
- * 比一行"挡位: 驻车挡"更接近真实档把的直觉。
- */
 @Composable
 private fun DriveCard(snap: CarSnapshot, bare: Boolean = false) {
     val gearRaw = snap.i("gear")
@@ -1038,7 +804,7 @@ private fun DriveCard(snap: CarSnapshot, bare: Boolean = false) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "行驶与里程",
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     letterSpacing = 0.6.sp,
                     color = MaterialTheme.colorScheme.primary,
@@ -1046,7 +812,7 @@ private fun DriveCard(snap: CarSnapshot, bare: Boolean = false) {
                 )
                 Text(
                     "%.0f km/h".format(speed),
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     color = if (speed > 0) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
@@ -1071,7 +837,7 @@ private fun DriveCard(snap: CarSnapshot, bare: Boolean = false) {
                         ) {
                             Text(
                                 g,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = if (active) FontWeight.Medium else FontWeight.Normal,
                                 color = if (active) MaterialTheme.colorScheme.onPrimary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -1080,18 +846,8 @@ private fun DriveCard(snap: CarSnapshot, bare: Boolean = false) {
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "总里程",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        Values.km(snap.odometer).removeSuffix(" km"),
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                }
+                // 总里程不在这里重复：顶层大卡已有「里程 12961」，
+                // 行驶卡只负责"现在这一下"的状态。
             }
 
             Spacer(Modifier.height(14.dp))
@@ -1119,7 +875,7 @@ private fun StatusDot(label: String, on: Boolean) {
         Spacer(Modifier.width(5.dp))
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             color = if (on) MaterialTheme.colorScheme.onSurface
             else MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1145,7 +901,7 @@ private fun CabinCard(snap: CarSnapshot, bare: Boolean = false) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "座舱与空调",
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     letterSpacing = 0.6.sp,
                     color = MaterialTheme.colorScheme.primary,
@@ -1153,7 +909,7 @@ private fun CabinCard(snap: CarSnapshot, bare: Boolean = false) {
                 )
                 Text(
                     if (acOn) "运行中 · " + mode else "已关闭",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     color = if (acOn) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1163,18 +919,18 @@ private fun CabinCard(snap: CarSnapshot, bare: Boolean = false) {
             // 温度对比
             Row(verticalAlignment = Alignment.Bottom) {
                 Column {
-                    Text("设定", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("设定", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             setTemp?.let { "%.0f".format(it) } ?: "--",
-                            fontSize = 36.sp,
+                            fontSize = 28.sp,
                             fontWeight = FontWeight.Light,
                             color = if (acOn) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             "°C",
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 5.dp)
                         )
@@ -1182,16 +938,16 @@ private fun CabinCard(snap: CarSnapshot, bare: Boolean = false) {
                 }
                 Spacer(Modifier.width(24.dp))
                 Column {
-                    Text("车内", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("车内", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             innerTemp?.let { "%.0f".format(it) } ?: "--",
-                            fontSize = 36.sp,
+                            fontSize = 28.sp,
                             fontWeight = FontWeight.Light,
                         )
                         Text(
                             "°C",
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(bottom = 5.dp)
                         )
@@ -1200,7 +956,7 @@ private fun CabinCard(snap: CarSnapshot, bare: Boolean = false) {
                 Spacer(Modifier.weight(1f))
                 // 风量条（1~7）
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("风量", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("风量", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         (1..7).forEach { i ->
@@ -1230,7 +986,7 @@ private fun CabinCard(snap: CarSnapshot, bare: Boolean = false) {
             }
 
             Spacer(Modifier.height(16.dp))
-            Text("座椅与舒适件", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("座椅与舒适件", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
 
             // 座椅档位点阵
@@ -1269,17 +1025,17 @@ private fun CabinCard(snap: CarSnapshot, bare: Boolean = false) {
 @Composable
 private fun SeatDots(label: String, level: Int?, modifier: Modifier = Modifier) {
     val lv = level ?: 0
+    // 不再铺灰底：座舱卡里原本有 7 个色块，套在卡片里形成"块中有块"。
+    // 平面排版下靠"档位点阵"本身表达状态，比底色更省视觉预算。
     Row(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium)
-            .padding(horizontal = 10.dp, vertical = 9.dp),
+        modifier = modifier.padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             label,
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.width(58.dp)
         )
         Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             (1..3).forEach { i ->
@@ -1300,13 +1056,7 @@ private fun SeatDots(label: String, level: Int?, modifier: Modifier = Modifier) 
 @Composable
 private fun ComfortChip(label: String, on: Boolean, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier
-            .background(
-                if (on) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                else MaterialTheme.colorScheme.surfaceContainerHighest,
-                MaterialTheme.shapes.medium
-            )
-            .padding(horizontal = 10.dp, vertical = 9.dp),
+        modifier = modifier.padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -1318,23 +1068,15 @@ private fun ComfortChip(label: String, on: Boolean, modifier: Modifier = Modifie
                     androidx.compose.foundation.shape.CircleShape
                 )
         )
-        Spacer(Modifier.width(5.dp))
+        Spacer(Modifier.width(6.dp))
         Text(
             label,
-            fontSize = 13.sp,
-            color = if (on) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurfaceVariant
+            fontSize = 12.sp,
+            color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
-/**
- * 驻车照片。
- *
- * 图来自 `GET /v3/api/chassis/query` 返回的 OSS 签名地址——只有哨兵抓拍过才有，
- * 不是每次驻车都有。所以默认只放一个入口按钮，点了才去取地址和下载，
- * 避免每次进页面都白拉一张几 MB 的图。
- */
 @Composable
 private fun ParkingPhotoCard(
     photo: android.graphics.Bitmap?,
@@ -1363,7 +1105,7 @@ private fun ParkingPhotoCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             if (uploadAt > 0) "拍摄于 " + fmtTime(uploadAt) else "驻车照片",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
                         )
@@ -1381,7 +1123,7 @@ private fun ParkingPhotoCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "驻车照片",
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     letterSpacing = 0.6.sp,
                     color = MaterialTheme.colorScheme.primary,
@@ -1390,7 +1132,7 @@ private fun ParkingPhotoCard(
                 if (uploadAt > 0) {
                     Text(
                         fmtTime(uploadAt),
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1426,7 +1168,7 @@ private fun ParkingPhotoCard(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("正在获取照片…", fontSize = 14.sp)
+                    Text("正在获取照片…", fontSize = 12.sp)
                 }
                 else -> Row(verticalAlignment = Alignment.CenterVertically) {
                     MapButton("查看驻车照片", Modifier.weight(1f), secondary = true) { onLoad() }
@@ -1502,7 +1244,7 @@ private fun LocationCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "车辆位置",
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     letterSpacing = 0.6.sp,
                     color = MaterialTheme.colorScheme.primary,
@@ -1510,7 +1252,7 @@ private fun LocationCard(
                 )
                 Text(
                     since(snap.signalTime),
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -1519,15 +1261,15 @@ private fun LocationCard(
             when {
                 !valid -> Text(
                     "无定位数据",
-                    fontSize = 18.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Medium
                 )
                 address != null -> {
                     Text(
                         address!!,
-                        fontSize = 18.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
-                        lineHeight = 23.sp,
+                        lineHeight = 21.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.clickable { jumpAmap() }
                     )
@@ -1536,7 +1278,7 @@ private fun LocationCard(
                     Text(
                         if (mapUseWgs) "WGS-84  %.5f, %.5f".format(wgsLat, wgsLon)
                         else "GCJ-02  %.5f, %.5f".format(lat, lon),
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1559,7 +1301,7 @@ private fun LocationCard(
                     Spacer(Modifier.height(4.dp))
                     Text(
                         if (resolving) "GCJ-02 坐标系" else "地址解析不可用，仅显示坐标",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1661,7 +1403,7 @@ private fun MapButton(
     ) {
         Text(
             label,
-            fontSize = 16.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = if (secondary) MaterialTheme.colorScheme.onSurface
             else MaterialTheme.colorScheme.onPrimary
@@ -1724,10 +1466,12 @@ private fun MergedSection(
 
 @Composable
 private fun SectionDivider() {
+    // 线本身很细，如果上下不留白，两块内容会挤成一块，"车身"看着像"胎压"的子项。
+    // 竖向内缩 6dp + 分隔线上下各 13dp，等价于让每个分区块有自己的呼吸。
     androidx.compose.material3.HorizontalDivider(
-        modifier = Modifier.padding(horizontal = 16.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
         thickness = 1.dp,
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
     )
 }
 

@@ -51,7 +51,7 @@ fun TrendScreen(
         ) {
             Text(
                 if (loading) "正在读取云端记录…" else "暂无趋势数据",
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (!loading) {
@@ -75,14 +75,14 @@ fun TrendScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "累计行驶",
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         letterSpacing = 0.5.sp
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
                         "车龄 ${trend.deliveryDays} 天",
-                        fontSize = 14.sp,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -90,13 +90,13 @@ fun TrendScreen(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         "${trend.totalMileage}",
-                        fontSize = 62.sp,
+                        fontSize = 56.sp,
                         fontWeight = FontWeight.Light,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         " km",
-                        fontSize = 24.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Light,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 11.dp, start = 2.dp)
@@ -108,12 +108,12 @@ fun TrendScreen(
                     ) {
                         Text(
                             "近 30 天",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             "${trend.dailyMileageSum.toInt()} km",
-                            fontSize = 18.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -177,7 +177,7 @@ fun TrendScreen(
                 Text(
                     "终身累计 ${trend.totalEnergy.toInt()} kWh / ${trend.totalMileage} km" +
                         (trend.rankPercent?.let { " · 全国排名前 $it" } ?: ""),
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -193,13 +193,13 @@ fun TrendScreen(
                         Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
                             Text(
                                 "${w.start.takeLast(5)} ~ ${w.end.takeLast(5)}",
-                                fontSize = 14.sp,
+                                fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
                                 "%.1f".format(w.ec),
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -215,7 +215,7 @@ fun TrendScreen(
                     Spacer(Modifier.height(10.dp))
                     Text(
                         "合计 %.1f kWh".format(lw.total),
-                        fontSize = 14.sp,
+                        fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -243,12 +243,12 @@ private fun Mini2(label: String, value: String) {
     Column {
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.65f)
         )
         Text(
             value,
-            fontSize = 16.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onPrimaryContainer
         )
@@ -262,14 +262,14 @@ private fun androidx.compose.foundation.layout.RowScope.Metric(
     unit: String,
 ) {
     Column(Modifier.weight(1f)) {
-        Text(label, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(3.dp))
         Text(
             value,
-            fontSize = 24.sp,
+            fontSize = 28.sp,
             fontWeight = FontWeight.Medium,
         )
-        Text(unit, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(unit, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -285,7 +285,7 @@ private fun SectionCard(title: String, content: @Composable () -> Unit) {
         Column(Modifier.padding(18.dp)) {
             Text(
                 title,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -317,7 +317,7 @@ private fun EcBar(
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             softWrap = false,
@@ -376,7 +376,7 @@ private fun EcBar(
         Spacer(Modifier.width(10.dp))
         Text(
             value?.let { "%.1f".format(it) } ?: "--",
-            fontSize = 16.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = if (highlight) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.onSurface,
@@ -386,7 +386,7 @@ private fun EcBar(
         )
         Text(
             if (delta == null || isBaseline) "" else (if (delta < 0) "↓" else "↑") + "%.1f".format(kotlin.math.abs(delta)),
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = when {
                 delta == null || isBaseline -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -407,7 +407,7 @@ private fun DailyRow(day: String, km: Double, kwh: Double, maxKm: Double) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             day,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             softWrap = false,
@@ -438,7 +438,7 @@ private fun DailyRow(day: String, km: Double, kwh: Double, maxKm: Double) {
         }
         Text(
             "${km.toInt()} km",
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             softWrap = false,
@@ -447,7 +447,7 @@ private fun DailyRow(day: String, km: Double, kwh: Double, maxKm: Double) {
         )
         Text(
             "%.1f".format(kwh),
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Normal,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,

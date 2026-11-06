@@ -285,16 +285,16 @@ fun ControlScreen(
     pending?.let { a ->
         AlertDialog(
             onDismissRequest = { pending = null },
-            title = { Text(a.label, fontSize = 18.sp, fontWeight = FontWeight.Medium) },
-            text = { Text(a.confirm ?: "", fontSize = 16.sp, lineHeight = 24.sp) },
+            title = { Text(a.label, fontSize = 20.sp, fontWeight = FontWeight.Medium) },
+            text = { Text(a.confirm ?: "", fontSize = 15.sp, lineHeight = 24.sp) },
             confirmButton = {
                 TextButton(onClick = {
                     onSend(a.cmdId, a.state)
                     pending = null
-                }) { Text("确定", fontSize = 16.sp, color = MaterialTheme.colorScheme.error) }
+                }) { Text("确定", fontSize = 15.sp, color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { pending = null }) { Text("取消", fontSize = 16.sp) }
+                TextButton(onClick = { pending = null }) { Text("取消", fontSize = 15.sp) }
             }
         )
     }
@@ -306,7 +306,7 @@ fun ControlScreen(
 private fun SectionLabel(text: String) {
     Text(
         text,
-        fontSize = 16.sp,
+        fontSize = 15.sp,
         fontWeight = FontWeight.Medium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         letterSpacing = 0.4.sp,
@@ -351,32 +351,26 @@ private fun StatusHero(snap: CarSnapshot?, locked: Boolean?, soc: Double) {
                     }
                 )
             }
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
+            // 大号电量与续航已移除：那是「车辆」页首屏的主体，
+            // 控制页重复一遍只会让"这一页是干什么的"变得模糊。
+            // 这里只留一行紧凑读数，够确认状态，不抢操作的视觉位置。
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    snap?.socPrecise?.let { "%.0f".format(it) } ?: "--",
-                    fontSize = 62.sp,
-                    fontWeight = FontWeight.Light,
+                    snap?.socPrecise?.let { "%.0f%%".format(it) } ?: "--",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    "%",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Light,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 12.dp, start = 3.dp)
+                    "  ·  " + (snap?.rangeLive?.let { "%.0f km".format(it) } ?: "-- km"),
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.weight(1f))
-                Text(
-                    snap?.rangeLive?.let { "%.0f km" .format(it) } ?: "-- km",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(bottom = 10.dp)
-                )
             }
-            Spacer(Modifier.height(14.dp))
-            SocBar(soc = soc, modifier = Modifier.fillMaxWidth(), height = 16.dp)
+            Spacer(Modifier.height(8.dp))
+            SocBar(soc = soc, modifier = Modifier.fillMaxWidth(), height = 8.dp)
         }
     }
 }
@@ -425,7 +419,7 @@ private fun QuickCircle(
         Spacer(Modifier.height(8.dp))
         Text(
             label,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -481,7 +475,7 @@ private fun SceneTile(
         Spacer(Modifier.height(6.dp))
         Text(
             label,
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
@@ -520,7 +514,7 @@ private fun ChargeSection(
                 )
                 Text(
                     limit?.let { "$it%" } ?: "--",
-                    fontSize = 24.sp,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.Medium,
                 )
             }
@@ -587,11 +581,11 @@ private fun SentryCard(on: Boolean, busy: Boolean, onChange: (Boolean) -> Unit) 
             )
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("哨兵模式", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Text("哨兵模式", fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(3.dp))
                 Text(
                     "仅当次驻车有效",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -616,14 +610,14 @@ private fun PinCard(value: String, onChange: (String) -> Unit, onSave: (String) 
         Column(Modifier.padding(20.dp)) {
             Text(
                 "需要操作密码",
-                fontSize = 17.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )
             Spacer(Modifier.height(5.dp))
             Text(
                 "车控指令必须携带 4 位车辆操作密码",
-                fontSize = 14.sp,
+                fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
             )
             Spacer(Modifier.height(14.dp))
@@ -631,7 +625,7 @@ private fun PinCard(value: String, onChange: (String) -> Unit, onSave: (String) 
                 OutlinedTextField(
                     value = value,
                     onValueChange = { v -> if (v.length <= 6 && v.all { it.isDigit() }) onChange(v) },
-                    label = { Text("操作密码", fontSize = 14.sp) },
+                    label = { Text("操作密码", fontSize = 12.sp) },
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -665,13 +659,13 @@ private fun CmdLogCard(log: List<CmdLog.Entry>, path: String) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "指令记录",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     if (log.isEmpty()) "空" else "${log.size} 条",
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -679,7 +673,7 @@ private fun CmdLogCard(log: List<CmdLog.Entry>, path: String) {
             if (log.isEmpty()) {
                 Text(
                     "还没有下发过指令。",
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
@@ -689,7 +683,7 @@ private fun CmdLogCard(log: List<CmdLog.Entry>, path: String) {
                         Column(Modifier.weight(1f)) {
                             Text(
                                 CmdLog.timeText(e.at) + "  " + e.label,
-                                fontSize = 14.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium
                             )
                             if (e.params.isNotEmpty()) {
@@ -704,7 +698,7 @@ private fun CmdLogCard(log: List<CmdLog.Entry>, path: String) {
                         }
                         Text(
                             if (e.ok) "成功" else "失败 ${e.code}",
-                            fontSize = 14.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = if (e.ok) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.error
@@ -802,7 +796,7 @@ private fun UpdateEntry(versionName: String, hint: String, onClick: () -> Unit) 
             }
             Text(
                 "›",
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
