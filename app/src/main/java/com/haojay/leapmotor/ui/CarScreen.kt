@@ -338,7 +338,7 @@ fun CarScreen(
             }
         }
     }
-}
+    }
 
 @Composable
 private fun MiniStat(label: String, value: String) {
