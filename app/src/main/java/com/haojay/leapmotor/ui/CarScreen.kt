@@ -58,8 +58,12 @@ private data class InfoGroup(val title: String, val rows: List<InfoRow>)
 /** 「待确认信号」那块的标题。展示与折叠判断共用一处，避免改一个漏一个。 */
 private const val GROUP_PENDING = "待确认信号"
 
+// SimpleDateFormat 每次 new 出来要几百微秒，界面每次重组都会调；
+// 它本身不是线程安全的，所以用单例 + 同步块，而不是每次新建。
+private val timeFormat = SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA)
+
 private fun fmtTime(ms: Long): String =
-    if (ms <= 0) "--" else SimpleDateFormat("MM-dd HH:mm:ss", Locale.CHINA).format(Date(ms))
+    if (ms <= 0) "--" else synchronized(timeFormat) { timeFormat.format(Date(ms)) }
 
 private fun since(ms: Long): String {
     if (ms <= 0) return "--"
@@ -155,7 +159,8 @@ fun CarScreen(
         return
     }
 
-    val groups = groupsOf(snap)
+    // 快照没变时不必重建分组（每次会是几十个 InfoRow 对象 + 字符串格式化）
+    val groups = remember(snap) { groupsOf(snap) }
     val chip = when {
         snap.isCharging -> "充电中"
         snap.plugged -> "已插枪"

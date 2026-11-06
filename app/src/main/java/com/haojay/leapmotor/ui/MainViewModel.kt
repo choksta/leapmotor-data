@@ -25,6 +25,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withContext
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -156,10 +157,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     init {
+        // 只有"是否已登录"必须同步拿到：它决定首屏是登录页还是主页。
         val s = SessionStore.load(app)
         session = s?.also { it.operatePwd = SettingsStore.getPin(app) }
         loggedIn = s != null
-        reloadCmdLog()
+        // 指令日志要读文件 + 解析 JSON，和首屏无关，别卡在启动的主线程上。
+        viewModelScope.launch {
+            val log = withContext(kotlinx.coroutines.Dispatchers.IO) { CmdLog.recent(ctx, 10) }
+            cmdLog = log
+        }
         if (s != null) refreshSnapshot()
         maybeCheckUpdate()
     }
