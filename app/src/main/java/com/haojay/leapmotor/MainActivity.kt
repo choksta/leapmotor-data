@@ -247,6 +247,7 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
                                 loading = vm.loadingSnapshot,
                                 error = vm.error,
                                 polling = vm.polling,
+                                updatedAt = vm.lastUpdateAt,
                                 pendingLock = vm.pendingLock,
                                 pendingTrunk = vm.pendingTrunk,
                                 onRefresh = vm::refreshSnapshot,

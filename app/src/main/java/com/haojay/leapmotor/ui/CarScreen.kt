@@ -120,6 +120,11 @@ fun CarScreen(
     loading: Boolean,
     error: String?,
     polling: Boolean,
+    /**
+     * 数据到达时间，用 State 传：只有读 .value 的地方会重组。
+     * 信号值没变的轮询只翻这个值，卡片整体跳过重组。
+     */
+    updatedAt: androidx.compose.runtime.State<Long>? = null,
     /** 乐观状态：非空时优先于车端信号，点完立刻反映（仅影响显示，不触发任何指令）。 */
     pendingLock: Boolean? = null,
     pendingTrunk: Boolean? = null,
@@ -203,7 +208,7 @@ fun CarScreen(
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
-                            since(snap.signalTime),
+                            since(updatedAt?.value ?: 0L),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -269,7 +274,13 @@ fun CarScreen(
             MergedSection {
                 CabinCard(snap, bare = true)
                 SectionDivider()
-                LocationCard(snap, bare = true, mapUseWgs = mapUseWgs, onToggleDatum = onToggleDatum)
+                LocationCard(
+                    snap = snap,
+                    updatedAt = updatedAt,
+                    bare = true,
+                    mapUseWgs = mapUseWgs,
+                    onToggleDatum = onToggleDatum
+                )
                 SectionDivider()
                 ParkingPhotoCard(
                     photo = parkingPhoto,
@@ -1205,6 +1216,7 @@ private fun ParkingPhotoCard(
 @Composable
 private fun LocationCard(
     snap: CarSnapshot,
+    updatedAt: androidx.compose.runtime.State<Long>? = null,
     bare: Boolean = false,
     mapUseWgs: Boolean = false,
     onToggleDatum: () -> Unit = {},
@@ -1256,7 +1268,7 @@ private fun LocationCard(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    since(snap.signalTime),
+                    since(updatedAt?.value ?: 0L),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -45,6 +45,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     var snapshot by mutableStateOf<CarSnapshot?>(null)
         private set
 
+    /**
+     * 最近一次数据到达时间。刻意和 [snapshot] 分开存：
+     * CarSnapshot 带 signalTime / collectTime，每次轮询都变，如果只靠它驱动状态，
+     * equals 永远不成立 → 整屏重组（实测单帧 38~55ms）。拆开之后，信号值没变的轮询
+     * 只更新这里，界面上只有"更新于"那行小字重组。
+     */
+    private val _lastUpdateAt = mutableStateOf(0L)
+
+    /**
+     * 用 State 暴露而不是 Long：只有真正读 .value 的那几个文本会重组。
+     * 如果按值传进 CarScreen，时间戳一变整页都会重组（实测仍有 24ms）。
+     */
+    val lastUpdateAt: androidx.compose.runtime.State<Long> get() = _lastUpdateAt
+
+    /** 统一的快照落地口：信号值没变就沿用旧对象，让 Compose 跳过卡片重组。 */
+    private fun publishSnapshot(s: CarSnapshot) {
+        _lastUpdateAt.value = maxOf(s.signalTime, s.collectTime)
+        val old = snapshot
+        if (old == null || old.signals != s.signals) snapshot = s
+    }
+
     var trend by mutableStateOf<TrendData?>(null)
         private set
 
@@ -195,7 +216,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             lastTick = tick
             // 每一轮都把最新车况推给界面：这才是"实时"的来源，
             // 否则下完指令界面要等下一轮手动刷新才变。
-            snapshot = tick.snapshot
+            publishSnapshot(tick.snapshot)
             error = null
             syncChargeLive(tick.snapshot)
         }
@@ -276,6 +297,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         session = null
         loggedIn = false
         snapshot = null
+        _lastUpdateAt.value = 0L
         trend = null
         codeSent = false
         loginError = null
@@ -319,7 +341,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val r = withContext(Dispatchers.IO) {
                 runCatching { withAuthRetry(sess) { repo.fetchSnapshot(it) } }
             }
-            r.onSuccess { snapshot = it; error = null; syncChargeLive(it) }
+            r.onSuccess { publishSnapshot(it); error = null; syncChargeLive(it) }
                 .onFailure {
                     val msg = it.message ?: "刷新失败"
                     error = msg
@@ -451,12 +473,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val s = withContext(Dispatchers.IO) {
                     runCatching { repo.fetchSnapshot(sess) }.getOrNull()
                 } ?: continue
-                snapshot = s
+                publishSnapshot(s)
                 error = null
                 if (targetReached(s, cmdId, state)) break
             }
             clearOptimistic(cmdId)
-            reloadCmdLog()
+            withContext(Dispatchers.IO) { CmdLog.recent(ctx, 10) }.let { cmdLog = it }
         }
     }
 
