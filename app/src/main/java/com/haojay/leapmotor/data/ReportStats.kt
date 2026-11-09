@@ -45,6 +45,17 @@ object ReportStats {
         val prevChargeCount: Int?,
         /** 前 5 名里程日，喂给模型写细节用。 */
         val topDays: List<Triple<String, Double, Int>>,
+        /** 本地数据实际能覆盖到的最早一天。 */
+        val coverageStartDay: String,
+        /** 本地数据覆盖的天数。 */
+        val coverageDays: Int,
+        /**
+         * 请求的区间是否超出了已有数据。
+         *
+         * 云端只保证近 30 天明细，所以「今年」「近 90 天」在刚装上时取到的是同一段数据。
+         * 这种情况必须显式标出来，否则用户会以为两个数是重复统计。
+         */
+        val partial: Boolean,
     )
 
     fun forDays(days: List<DailyStore.Day>, period: Period, now: Long = System.currentTimeMillis()): Stats =
@@ -67,14 +78,32 @@ object ReportStats {
         }
         val startDay = dayFormat.format(startCal.time)
 
-        val inRange = days.filter { it.day >= startDay && it.day <= endDay }
+        // 本地只有多云端的近 30 天，请求更长区间时要把窗口裁到真实覆盖范围内，
+        // 否则「今年」和「近 90 天」会算出同一段数据却像两个独立结果。
+        val coverageStart = days.firstOrNull()?.day ?: endDay
+        val effectiveStart = if (coverageStart > startDay) coverageStart else startDay
+        val partial = coverageStart > startDay
+        // 跨度天数，不是"有数据的条数"：否则提示写 18 天、下面却显示 17/31 天，自相矛盾
+        val coverageDays = if (days.isEmpty()) 0 else {
+            calendarSpan(dayFormat.parse(coverageStart)?.time ?: now, now) + 1
+        }
+
+        val inRange = days.filter { it.day >= effectiveStart && it.day <= endDay }
         val prevStartCal = Calendar.getInstance().apply {
             timeInMillis = startCal.timeInMillis
             add(Calendar.DAY_OF_MONTH, -period.days)
         }
         val prevStartDay = dayFormat.format(prevStartCal.time)
         val prevEndCal = Calendar.getInstance().apply { timeInMillis = startCal.timeInMillis; add(Calendar.DAY_OF_MONTH, -1) }
-        val prev = days.filter { it.day >= prevStartDay && it.day <= dayFormat.format(prevEndCal.time) }
+        val prevEndDay = dayFormat.format(prevEndCal.time)
+        // 环比只有在"上一周期被数据完整覆盖"时才有意义。
+        // 否则拿全年（366 天）和只有 2 个月的去年比，会算出 +756% 这种荒谬数字。
+        val prevCovered = days.firstOrNull()?.day?.let { it <= prevStartDay } ?: false
+        val prev = if (prevCovered) {
+            days.filter { it.day >= prevStartDay && it.day <= prevEndDay }
+        } else {
+            emptyList()
+        }
 
         val totalKm = inRange.sumOf { it.km }
         val kwhDays = inRange.filter { !it.kwh.isNaN() }
@@ -82,7 +111,12 @@ object ReportStats {
         val ec = if (kwhDays.isNotEmpty() && totalKm > 1.0 && totalKwh > 0) totalKwh / totalKm * 100 else null
 
         val driveDays = inRange.count { it.moved }
-        val totalDays = calendarSpan(startCal.timeInMillis, now) + 1
+        // 覆盖不足时分母只算有数据的天数，避免出现"用车 3/313 天"这种误导
+        val totalDays = if (partial) {
+            calendarSpan(dayFormat.parse(effectiveStart)?.time ?: startCal.timeInMillis, now) + 1
+        } else {
+            calendarSpan(startCal.timeInMillis, now) + 1
+        }
         val top = inRange.sortedByDescending { it.km }.take(5)
             .map { Triple(it.day, it.km, it.chargeStarts) }
 
@@ -91,7 +125,7 @@ object ReportStats {
 
         return Stats(
             periodLabel = period.label,
-            startDay = startDay,
+            startDay = effectiveStart,
             endDay = endDay,
             totalKm = totalKm.round1(),
             totalKwh = totalKwh.round1(),
@@ -108,6 +142,9 @@ object ReportStats {
             prevKm = prev.takeIf { it.isNotEmpty() }?.sumOf { it.km }?.round1(),
             prevChargeCount = prev.takeIf { it.isNotEmpty() }?.sumOf { it.chargeStarts },
             topDays = top,
+            coverageStartDay = coverageStart,
+            coverageDays = coverageDays,
+            partial = partial,
         )
     }
 

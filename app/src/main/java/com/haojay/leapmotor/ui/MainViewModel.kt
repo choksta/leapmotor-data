@@ -420,6 +420,35 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         mapUseWgs = next
     }
 
+    /**
+     * 探测云端是否支持长区间历史（一次最多一年）。
+     *
+     * 云端 getMileageRange 带 days 参数，30 天只是我们一直以来的用法。
+     * 能返回更多就回填，拿不到也不影响主流程。每天最多试一次。
+     */
+    private fun maybeBackfillLongRange(sess: LpSession) {
+        val prefs = ctx.getSharedPreferences("leapmotor_prefs", android.content.Context.MODE_PRIVATE)
+        val last = prefs.getLong("longrange_probe_at", 0L)
+        val now = System.currentTimeMillis()
+        if (now - last < 20 * 3600_000L) return
+        prefs.edit().putLong("longrange_probe_at", now).apply()
+
+        viewModelScope.launch {
+            val long = withContext(Dispatchers.IO) {
+                runCatching { withAuthRetry(sess) { repo.fetchTrend(it, 365) } }.getOrNull()
+            }
+            if (long == null || long.daily.isEmpty()) {
+                android.util.Log.i("LongRange", "云端未返回长区间明细")
+                return@launch
+            }
+            android.util.Log.i(
+                "LongRange",
+                "长区间返回 " + long.daily.size + " 天：" + long.daily.first().day + " ~ " + long.daily.last().day
+            )
+            withContext(Dispatchers.IO) { runCatching { DailyStore.backfill(ctx, long) } }
+        }
+    }
+
     fun refreshTrend() {
         val sess = session ?: return
         if (loadingTrend) return
@@ -430,6 +459,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
             r.onSuccess {
                 trend = it
+                // 云端 getMileageRange 带 days 参数，30 天只是我们一直以来的用法。
+                // 试一次长区间：能返回更多就回填，拿不到也不影响主流程。每天最多试一次。
+                maybeBackfillLongRange(sess)
                 // 云端 30 天明细是权威值，回填进本地日表，
                 // 这样即使以后换手机，也能拿到至少一个月的真实基线
                 withContext(Dispatchers.IO) { runCatching { DailyStore.backfill(ctx, it) } }

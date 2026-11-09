@@ -103,6 +103,18 @@ fun ReportDialog(onDismiss: () -> Unit) {
                     }
                 }
 
+                stats?.takeIf { it.partial }?.let { st ->
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        // 「今年」在只有 30 天数据时和「近 90 天」是同一段，必须说清楚
+                        "本地数据从 ${st.coverageStartDay} 开始（共 ${st.coverageDays} 天），" +
+                            "「${period.label}」实际只统计这段时间",
+                        fontSize = 11.sp,
+                        lineHeight = 17.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 Spacer(Modifier.height(12.dp))
 
                 Column(
