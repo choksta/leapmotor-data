@@ -208,6 +208,16 @@ fun TrendScreen(
                     baseline = base,
                     highlight = false
                 )
+                trend.plugEc?.let { plug ->
+                    Spacer(Modifier.height(9.dp))
+                    EcBar(
+                        label = "插枪期间",
+                        value = plug,
+                        scaleMax = scale,
+                        baseline = base,
+                        highlight = false
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
                 Text(
                     "终身累计 ${trend.totalEnergy.toInt()} kWh / ${trend.totalMileage} km" +

@@ -446,6 +446,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 "长区间返回 " + long.daily.size + " 天：" + long.daily.first().day + " ~ " + long.daily.last().day
             )
             withContext(Dispatchers.IO) { runCatching { DailyStore.backfill(ctx, long) } }
+
+            // 顺带探测插枪电耗接口：确认它的返回结构，判断值不值得做成功能
+            runCatching {
+                withContext(Dispatchers.IO) { withAuthRetry(sess) { repo.fetchPlugEnergy(it) } }
+            }.onSuccess { resp ->
+                val data = resp.optJSONObject("data")
+                val keys = data?.keys()?.let { k -> buildList { while (k.hasNext()) add(k.next()) } }
+                android.util.Log.i("PlugEnergy", "keys=" + keys + " raw=" + resp.toString().take(400))
+            }.onFailure {
+                android.util.Log.i("PlugEnergy", "fail: " + it.message)
+            }
         }
     }
 

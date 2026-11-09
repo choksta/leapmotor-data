@@ -1218,8 +1218,8 @@ private fun LocationCard(
     onToggleDatum: () -> Unit = {},
 ) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    val lat = snap.d("latitude")
-    val lon = snap.d("longitude")
+    val lat = snap.latitudeAny
+    val lon = snap.longitudeAny
     val valid = lat != null && lon != null && lat != 0.0 && lon != 0.0
 
     // 车端值（GCJ-02）与换算出的 WGS-84，两套都留一份：

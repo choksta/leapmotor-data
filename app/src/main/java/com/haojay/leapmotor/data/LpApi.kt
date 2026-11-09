@@ -432,4 +432,13 @@ class LpApi(private val session: LpSession, private val timeoutMs: Int = 20000) 
     /** 上周能耗拆分（驱动/空调/其它）。 */
     fun getLastWeekEC(vin: String): JSONObject =
         carCall(Constants.EP_LASTWEEK_EC, mapOf("carvin" to vin))
+
+    /**
+     * 插枪期间六周百公里电耗。
+     *
+     * 和 [getEnergyRank] 的差别是：只统计插枪（充电）时段，用来区分"充电损耗"与"行驶电耗"。
+     * 这个接口一直存在但从未被调用过，先用探测确认结构。
+     */
+    fun getPlugEnergy(vin: String): JSONObject =
+        carCall(Constants.EP_PLUG_ENERGY, mapOf("carvin" to vin))
 }

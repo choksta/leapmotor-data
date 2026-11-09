@@ -65,6 +65,13 @@ object SignalIds {
         "1944" to "vehicle_state_code",
         "1945" to "windshield_defrost",
         "1946" to "rear_window_heat",
+        // 坐标有两套冗余信号（HA 集成里也这么兜底）：主信号缺失时用它
+        "3724" to "longitude_alt",
+        "3725" to "latitude_alt",
+        "2191" to "longitude_alt2",
+        "2190" to "latitude_alt2",
+        // 设备侧毫秒时间戳，和 signal_time 同源，仅用于对照
+        "1" to "device_time",
         "2" to "longitude",
         "2100" to "seat_heat_driver",
         "2101" to "seat_vent_driver",

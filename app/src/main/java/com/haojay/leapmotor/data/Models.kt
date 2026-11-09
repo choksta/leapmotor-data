@@ -7,6 +7,16 @@ data class CarSnapshot(
     val collectTime: Long,
 ) {
     fun d(key: String): Double? = signals[key]?.takeIf { !it.isNaN() }
+
+    /**
+     * 坐标带回退链：主信号 2/3 有时不上报（车机休眠、定位失败），
+     * 云端同时还发了两套冗余坐标，取第一个有效值。
+     */
+    val longitudeAny: Double?
+        get() = d("longitude") ?: d("longitude_alt") ?: d("longitude_alt2")
+
+    val latitudeAny: Double?
+        get() = d("latitude") ?: d("latitude_alt") ?: d("latitude_alt2")
     fun i(key: String): Int? = d(key)?.toInt()
 
     val socPrecise: Double? get() = d("soc_precise") ?: d("soc")
@@ -59,6 +69,8 @@ data class TrendData(
     val lastWeek: WeekBreakdown? = null,
     val rankPercent: String? = null,
     val hundredKmEc: Double? = null,
+    /** 插枪（充电）期间六周百公里电耗，来自 EP_PLUG_ENERGY。 */
+    val plugEc: Double? = null,
 ) {
     /**
      * 区间平均百公里电耗。

@@ -9,6 +9,11 @@ import org.json.JSONObject
  */
 class Repo(private val ctx: Context) {
 
+    companion object {
+        /** 信号盘点只做一次，避免每次轮询刷日志。 */
+        private var audited = false
+    }
+
     fun session(): LpSession? = SessionStore.load(ctx)
 
     private fun api(sess: LpSession) = LpApi(sess)
@@ -37,6 +42,22 @@ class Repo(private val ctx: Context) {
             m[SignalIds.MAP[k] ?: "raw_$k"] = sm.optDouble(k, Double.NaN)
         }
         val st = m["signal_time"]?.toLong() ?: 0L
+        // 一次性盘点：云端到底给了多少信号、我们没映射的有哪些（只打一次，别刷日志）
+        if (!audited) {
+            audited = true
+            // JSONObject.keys() 是 Iterator，不是集合，得自己收一遍
+            val raw = buildList { val it = sm.keys(); while (it.hasNext()) add(it.next()) }
+            val unknown = raw.filter { SignalIds.MAP[it] == null }
+            android.util.Log.i(
+                "SignalAudit",
+                "云端 " + raw.size + " 个信号，已映射 " + (raw.size - unknown.size) +
+                    "，未映射 " + unknown.size + "：" + unknown.take(40)
+            )
+            // 未映射的那些把值也打出来，方便判断有没有价值
+            unknown.forEach { k ->
+                android.util.Log.i("SignalAudit", "  raw $k = " + sm.optDouble(k, Double.NaN))
+            }
+        }
         return CarSnapshot(m, st, data.optLong("collectTime"))
     }
 
@@ -119,6 +140,13 @@ class Repo(private val ctx: Context) {
             }
         }
 
+        // 插枪期间电耗：独立接口，失败不影响主流程
+        val plugEc = runCatching {
+            fetchPlugEnergy(sess).optJSONObject("data")
+                ?.optJSONObject("hundredKmEC")
+                ?.optString("ec100km")?.toDoubleOrNull()
+        }.getOrNull()
+
         return TrendData(
             totalMileage = md.optInt("totalmileage"),
             deliveryDays = md.optInt("deliveryDays"),
@@ -128,12 +156,30 @@ class Repo(private val ctx: Context) {
             lastWeek = lastWeek,
             rankPercent = rank,
             hundredKmEc = hundred,
+            plugEc = plugEc,
         )
     }
 
     // ---------------- 车控 ----------------
 
     /** 读充电计划（上限 / 预约 / 周几 / 是否启用）。 */
+    /** 插枪期间六周电耗。返回原始 JSON，结构由调用方解释（目前只做探测）。 */
+    fun fetchPlugEnergy(sess: LpSession): org.json.JSONObject {
+        val vin = sess.vin ?: resolveVin(sess)
+        val a = api(sess)
+        // 参数名不确定：先按 carvin（和 EP_LASTWEEK_EC 一致），失败再试 vin
+        val first = runCatching { a.getPlugEnergy(vin) }
+        first.exceptionOrNull()?.let {
+            android.util.Log.i("PlugEnergy", "carvin 失败: " + it::class.java.simpleName + " / " + it.message)
+        }
+        first.getOrNull()?.let { return it }
+        val second = runCatching { a.carCall(Constants.EP_PLUG_ENERGY, mapOf("vin" to vin)) }
+        second.exceptionOrNull()?.let {
+            android.util.Log.i("PlugEnergy", "vin 失败: " + it::class.java.simpleName + " / " + it.message)
+        }
+        return second.getOrThrow()
+    }
+
     fun fetchChargePlan(sess: LpSession): org.json.JSONObject {
         val vin = sess.vin ?: resolveVin(sess)
         return api(sess).getChargePlan(vin)
