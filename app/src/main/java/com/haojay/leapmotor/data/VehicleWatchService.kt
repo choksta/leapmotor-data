@@ -45,6 +45,16 @@ class VehicleWatchService : Service() {
     /** 车门未锁的起始时刻；用于"持续 N 分钟才提醒"，避免人还在车里就被催。 */
     private var unlockedSince: Long? = null
 
+    /**
+     * 上一次发出去的实时活动内容。用来做两件事：
+     * 1. 内容没变就不重发 —— 重新 startForeground 会让气泡重播一次动画；
+     * 2. 内容变了才重发 —— 这是 HyperOS 刷新流体云卡片的前提。
+     */
+    private var lastLiveKey: String? = null
+
+    /** 上一轮是否插枪，用来捕捉"开始充电"这个上升沿。 */
+    private var wasPlugged: Boolean? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -71,6 +81,9 @@ class VehicleWatchService : Service() {
     }.isSuccess
 
     private suspend fun poll() {
+        // 下一次间隔跟着上一帧的状态走：充电前段 15 秒，其余 30 秒。
+        // 拿不到数据时保持上一次的节奏，不要因为一次失败就降频。
+        var nextMs = Cadence.IDLE_MS
         val auth = AuthManager(applicationContext)
         val repo = Repo(applicationContext)
         val mgr = getSystemService(NotificationManager::class.java)
@@ -86,10 +99,26 @@ class VehicleWatchService : Service() {
                 runCatching {
                     auth.ensureFresh(sess)
                     repo.fetchSnapshot(sess)
+                }.onFailure {
+                    android.util.Log.w("Watch", "poll failed: " + it.message)
                 }.getOrNull()
             }
 
             if (snap != null) {
+                nextMs = Cadence.forSnapshot(snap)
+                // 后台刷新出问题时，这行是唯一能确认"到底有没有拿到新数据"的依据
+                android.util.Log.i(
+                    "Watch",
+                    "poll ok soc=" + (snap.socPrecise ?: -1.0) + " plugged=" + snap.plugged +
+                        " charging=" + snap.isCharging
+                )
+                // 顺手记一笔日表：报告功能的历史数据全靠它攒
+                runCatching { DailyStore.record(applicationContext, snap) }
+                if (wasPlugged == false && snap.plugged) {
+                    runCatching { DailyStore.recordChargeStart(applicationContext) }
+                }
+                wasPlugged = snap.plugged
+
                 evaluate(snap, mgr)
 
                 // 拔枪且用户没开后台监控 → 收工
@@ -99,8 +128,26 @@ class VehicleWatchService : Service() {
                 }
             }
 
-            delay(30_000L)
+            delay(nextMs)
         }
+    }
+
+    /**
+     * 更新实时活动（流体云）。
+     *
+     * 为什么不用 `notify()`：HyperOS 的流体云卡片只在"前台服务通知被重新注册"时重绘，
+     * 单纯的 notify 只更新通知栏，气泡会停在首帧 —— 这就是"后台不刷新、回前台才对"的原因。
+     * 所以这里改走 `startForeground`，并且只在内容变化时触发，避免气泡反复重播。
+     */
+    private fun pushLive(mgr: NotificationManager, key: String, n: android.app.Notification) {
+        if (key == lastLiveKey) return
+        val ok = promoteToForeground(n)
+        if (!ok) {
+            // 极端情况（系统拒绝重新注册）退回普通更新，至少通知栏是对的
+            runCatching { mgr.notify(AlertCenter.ID_LIVE, n) }
+        }
+        lastLiveKey = key
+        android.util.Log.i("Watch", "live update: " + key)
     }
 
     /** 一轮判定：更新前台通知、状态异常通知、一次性告警。 */
@@ -109,8 +156,18 @@ class VehicleWatchService : Service() {
         mgr ?: return
 
         // 1) 前台通知：插枪时切成充电实时活动（会请求提升），否则退回监控占位
-        mgr.notify(
-            AlertCenter.ID_LIVE,
+        // key 直接用快照字段算，比从通知 extras 里反读标题可靠
+        val liveKey = listOf(
+            snap.plugged, snap.isCharging,
+            (snap.socPrecise ?: 0.0).roundToInt(),
+            snap.d("remaining_charge_minutes")?.toInt() ?: -1,
+            snap.rangeLive?.roundToInt() ?: -1,
+            // 监控通知的文案里有锁车状态，漏了它就会出现"锁了车但文案不变"
+            snap.locked ?: "unknown"
+        ).joinToString("/")
+        pushLive(
+            mgr,
+            liveKey,
             if (snap.plugged) AlertCenter.chargeNotification(ctx, snap)
             else AlertCenter.monitorNotification(ctx, snap)
         )

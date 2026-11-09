@@ -117,9 +117,36 @@ object AlertCenter {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(openApp(ctx, 1))
             .setStyle(NotificationCompat.ProgressStyle().setProgress(soc))
+            .addExtras(focusExtras(title, detail, R.drawable.ic_stat_charge))
             .setShortCriticalText(if (remain != null) shortDuration(remain) else "$soc%")
             .setRequestPromotedOngoing(true)
             .build()
+    }
+
+
+    /**
+     * HyperOS 流体云的刷新依据。
+     *
+     * 只发普通常驻通知时，气泡会在首次展示后变成"静态快照"：后台 notify 依然生效，
+     * 通知栏数字也会变，但气泡要等 App 回到前台才重新绑定。原因是 HyperOS 把流体云
+     * 当作「焦点通知」处理，并按 `miui.focus.param` 决定要不要重绘。
+     *
+     * 这些 extras 是小米私有字段，其他 ROM 会直接忽略，所以不设开关。
+     */
+    private fun focusExtras(title: String, content: String, picRes: Int): android.os.Bundle {
+        val param = org.json.JSONObject()
+            .put("paramText", content)
+            .put("paramIsEphemeral", false)
+            .put("paramTitle", title)
+        val cfg = org.json.JSONObject()
+            .put("type", 1)
+            .put("bundleContent", org.json.JSONObject().put("paramText", content))
+        return android.os.Bundle().apply {
+            putString("miui.focus.param", param.toString())
+            putString("miui.focus.ticker", cfg.toString())
+            putInt("miui.focus.pic", picRes)
+            putBoolean("miui.focus.hide", false)
+        }
     }
 
     // ---------------- 监控占位通知 ----------------

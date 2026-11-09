@@ -310,7 +310,7 @@ fun CarScreen(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    if (polling) "前台刷新中 · 行驶 6 秒 / 其余 30 秒" else "自动刷新已暂停",
+                    if (polling) "前台刷新中 · 行驶 6 秒 / 充电 15 秒 / 其余 30 秒" else "自动刷新已暂停",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -11,6 +11,7 @@ import com.haojay.leapmotor.data.AuthManager
 import com.haojay.leapmotor.data.CarSnapshot
 import com.haojay.leapmotor.data.VehicleWatchService
 import com.haojay.leapmotor.data.CmdLog
+import com.haojay.leapmotor.data.DailyStore
 import com.haojay.leapmotor.data.LpSession
 import com.haojay.leapmotor.data.Poller
 import com.haojay.leapmotor.data.Repo
@@ -427,8 +428,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val r = withContext(Dispatchers.IO) {
                 runCatching { withAuthRetry(sess) { repo.fetchTrend(it, 30) } }
             }
-            r.onSuccess { trend = it }
-                .onFailure { message = "趋势加载失败：${it.message}" }
+            r.onSuccess {
+                trend = it
+                // 云端 30 天明细是权威值，回填进本地日表，
+                // 这样即使以后换手机，也能拿到至少一个月的真实基线
+                withContext(Dispatchers.IO) { runCatching { DailyStore.backfill(ctx, it) } }
+            }.onFailure { message = "趋势加载失败：${it.message}" }
             loadingTrend = false
         }
     }

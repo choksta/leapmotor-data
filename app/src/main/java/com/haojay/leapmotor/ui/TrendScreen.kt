@@ -38,6 +38,8 @@ fun TrendScreen(
     trend: TrendData?,
     loading: Boolean,
     onLoad: () -> Unit,
+    /** 打开「用车报告」。报告页是独立弹窗，不占这个列表的位置。 */
+    onOpenReport: () -> Unit = {},
     topInset: androidx.compose.ui.unit.Dp = 0.dp,
     bottomInset: androidx.compose.ui.unit.Dp = 96.dp,
 ) {
@@ -67,6 +69,39 @@ fun TrendScreen(
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = topInset + 8.dp, bottom = bottomInset),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item {
+            // 报告入口放在最上面：它是"回头看"的功能，比看数字更值得先被看见
+            Card(
+                onClick = onOpenReport,
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "用车报告",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            "把这周的里程、充电和出行时段，写成一段能看的话",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                        )
+                    }
+                    Text("›", fontSize = 22.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+        }
+
         item {
             // Expressive Hero：无卡片底色，靠 62sp 细字重与波浪进度建立焦点。
             // 波浪条表达「用车活跃率」= 用车天数 / 交付天数，

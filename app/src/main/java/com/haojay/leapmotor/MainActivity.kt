@@ -121,6 +121,7 @@ class MainActivity : ComponentActivity() {
 private fun AppRoot(vm: MainViewModel = viewModel()) {
     var tab by remember { mutableIntStateOf(0) }
     var showUpdate by remember { mutableStateOf(false) }
+    var showReport by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(vm.message) {
@@ -266,6 +267,7 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
                                 trend = vm.trend,
                                 loading = vm.loadingTrend,
                                 onLoad = { vm.refreshTrend() },
+                                onOpenReport = { showReport = true },
                                 topInset = listTop,
                                 bottomInset = listBottom
                             )
@@ -311,6 +313,10 @@ private fun AppRoot(vm: MainViewModel = viewModel()) {
                     .padding(bottom = capsuleBottom)
             )
         }
+    }
+
+    if (showReport) {
+        com.haojay.leapmotor.ui.ReportDialog { showReport = false }
     }
 
     if (showUpdate) {

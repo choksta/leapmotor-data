@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
  *
  * 频率依据：
  * - 行驶 6 秒：里程/能耗变化快，官方 App 也在这个量级
- * - 充电 30 秒：SOC 每分钟约涨 0.1~0.5%，再快是浪费请求
+ * - 充电前段 15 秒、80% 之后 30 秒：前段 SOC 涨得快，后段曲线变平（见 [Cadence]）
  * - 驻车 30 秒：车机虽不刷新，但用户可能刚下过指令，界面需要尽快追上真实状态
  */
 class Poller(
@@ -65,9 +65,10 @@ class Poller(
                             state = state,
                             signalTime = snap.signalTime,
                             nextSec = when (state) {
-                                "driving" -> 6L
-                                "charging" -> 30L
-                                else -> 30L
+                                "driving" -> Cadence.DRIVING_MS / 1000
+                                // 充电前段 15 秒跟手，80% 之后回到 30 秒省请求
+                                "charging" -> Cadence.forSnapshot(snap) / 1000
+                                else -> Cadence.IDLE_MS / 1000
                             },
                             snapshot = snap
                         )
