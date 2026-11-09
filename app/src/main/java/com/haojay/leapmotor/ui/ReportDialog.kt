@@ -194,7 +194,7 @@ fun ReportDialog(onDismiss: () -> Unit) {
 private fun StatGrid(s: ReportStats.Stats) {
     val items = buildList {
         add("总里程" to "${s.totalKm.roundToInt()} km")
-        if (s.ecPer100 != null) add("百公里电耗" to "${s.ecPer100} kWh")
+        if (s.ecPer100 != null) add("行驶电耗" to "${s.ecPer100} kWh/100km")
         add("用车天数" to "${s.driveDays}/${s.totalDays} 天")
         add("充电" to "${s.chargeCount} 次")
         if (s.longestDayKm > 0) add("跑得最多的一天" to "${s.longestDayKm.roundToInt()} km")

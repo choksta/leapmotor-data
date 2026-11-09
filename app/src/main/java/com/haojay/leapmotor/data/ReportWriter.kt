@@ -152,6 +152,8 @@ object ReportWriter {
                 - 允许有一点情绪和想象，但**只能基于给定数据**：不许编造天气、地名、路况、
                   同行的人、目的地
                 - 不夸张、不煽情、不用感叹号堆情绪，一句话里最多一个形容词
+                - 电耗数据是"行驶电耗"（逐日明细只含行驶用电，不含空调与待机），
+                  不要写成"综合电耗"，也不要拿它跟别的口径做对比
             """.trimIndent()
         }
         return tone + """
@@ -169,7 +171,7 @@ object ReportWriter {
             .put("区间", "${s.startDay} 至 ${s.endDay}（${s.periodLabel}）")
             .put("总里程_km", s.totalKm)
             .put("总电耗_kWh", s.totalKwh)
-            .put("百公里电耗_kWh", s.ecPer100 ?: "云端未提供")
+            .put("行驶电耗_kWh每百公里", s.ecPer100 ?: "云端未提供")
             .put("用车天数", s.driveDays)
             .put("区间总天数", s.totalDays)
             .put("没动车天数", s.restDays)

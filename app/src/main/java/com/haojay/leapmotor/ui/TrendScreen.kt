@@ -185,11 +185,12 @@ fun TrendScreen(
                 val scale = listOfNotNull(trend.avgEc, trend.lifetimeEc, trend.hundredKmEc)
                     .maxOrNull()?.coerceAtLeast(1.0) ?: 1.0
                 EcBar(
-                    label = "近 30 天",
+                    label = "近30天·行驶",
                     value = trend.avgEc,
                     scaleMax = scale,
                     baseline = base,
-                    highlight = true
+                    highlight = true,
+                    showDelta = false
                 )
                 Spacer(Modifier.height(9.dp))
                 EcBar(
@@ -218,7 +219,15 @@ fun TrendScreen(
                         highlight = false
                     )
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "「近 30 天」是逐日明细累加的行驶电耗（不含空调与待机）；" +
+                        "其余三行是综合电耗，所以数值会高约 10%",
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+                Spacer(Modifier.height(8.dp))
                 Text(
                     "终身累计 ${trend.totalEnergy.toInt()} kWh / ${trend.totalMileage} km" +
                         (trend.rankPercent?.let { " · 全国排名前 $it" } ?: ""),
@@ -354,10 +363,17 @@ private fun EcBar(
     baseline: Double,
     highlight: Boolean,
     isBaseline: Boolean = false,
+    /**
+     * 是否显示与基线（终身均值）的差值。
+     *
+     * 逐日明细只统计行驶用电，终身/六周/插枪是综合电耗（含空调、待机、充电损耗），
+     * 两者差 ~10%。跨口径相减得出"↓1.2"是假信号，必须关掉。
+     */
+    showDelta: Boolean = true,
 ) {
     val frac = value?.let { (it / scaleMax).toFloat().coerceIn(0f, 1f) } ?: 0f
     val baseFrac = (baseline / scaleMax).toFloat().coerceIn(0f, 1f)
-    val delta = value?.minus(baseline)
+    val delta = if (showDelta) value?.minus(baseline) else null
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -367,7 +383,7 @@ private fun EcBar(
             maxLines = 1,
             softWrap = false,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(68.dp)
+            modifier = Modifier.width(84.dp)
         )
         Box(
             modifier = Modifier
