@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -93,12 +94,17 @@ fun ReportDialog(onDismiss: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     ReportStats.Period.entries.forEach { p ->
                         FilterChip(
                             selected = period == p,
                             onClick = { period = p },
-                            label = { Text(p.label, fontSize = 13.sp) }
+                            label = {
+                                Text(p.label, fontSize = 13.sp, maxLines = 1, softWrap = false)
+                            }
                         )
                     }
                 }
@@ -132,13 +138,13 @@ fun ReportDialog(onDismiss: () -> Unit) {
                             fontWeight = FontWeight.SemiBold,
                             lineHeight = 28.sp
                         )
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            report!!.body,
-                            fontSize = 15.sp,
-                            lineHeight = 26.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        // 先给形状再给文字：一行柱子比"总里程 319 公里"更容易被看见
+                        stats?.let {
+                            Spacer(Modifier.height(12.dp))
+                            ReportDailyBars(it.dailyKm)
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        ReportBody(report!!.body)
                     }
 
                     error?.let {
@@ -194,7 +200,7 @@ fun ReportDialog(onDismiss: () -> Unit) {
 private fun StatGrid(s: ReportStats.Stats) {
     val items = buildList {
         add("总里程" to "${s.totalKm.roundToInt()} km")
-        if (s.ecPer100 != null) add("行驶电耗" to "${s.ecPer100} kWh/100km")
+        if (s.ecPer100 != null) add("行驶电耗/100km" to "${s.ecPer100} kWh")
         add("用车天数" to "${s.driveDays}/${s.totalDays} 天")
         add("充电" to "${s.chargeCount} 次")
         if (s.longestDayKm > 0) add("跑得最多的一天" to "${s.longestDayKm.roundToInt()} km")

@@ -86,7 +86,7 @@ object ReportWriter {
         val body = JSONObject()
             .put("model", model(ctx))
             .put("temperature", 0.9)
-            .put("max_tokens", 1200)
+            .put("max_tokens", 2400)
             .put("messages", JSONArray().apply {
                 put(JSONObject().put("role", "system").put("content", systemPrompt(style)))
                 put(JSONObject().put("role", "user").put("content", payload.toString(2)))
@@ -141,30 +141,41 @@ object ReportWriter {
 
     const val STYLE_WARM = "warm"
 
-    private fun systemPrompt(style: String): String {
-        val tone = when (style) {
-            else -> """
-                你是一个"记得车主每段路"的朋友，语气温暖、具体、有分寸。
-                要求：
-                - 像在跟人聊天，不用"您"，不用敬语套话，不做总结陈词式的说教
-                - 从数据里找细节说话（某一天跑得多、某几天没动车、充电习惯、出门时段），
-                  不要泛泛而谈"请注意用车安全"这类没有信息量的话
-                - 允许有一点情绪和想象，但**只能基于给定数据**：不许编造天气、地名、路况、
-                  同行的人、目的地
-                - 不夸张、不煽情、不用感叹号堆情绪，一句话里最多一个形容词
-                - 电耗数据是"行驶电耗"（逐日明细只含行驶用电，不含空调与待机），
-                  不要写成"综合电耗"，也不要拿它跟别的口径做对比
-            """.trimIndent()
-        }
-        return tone + """
+    private fun systemPrompt(style: String): String = """
+        你是一个"记得车主每段路"的朋友，语气温暖、具体、有分寸。
 
-            输出格式（严格遵守）：
-            第一行：一句标题，12 字以内，不加书名号，能概括这段时间的用车状态
-            然后空一行，写 3 段正文，每段 60～90 字，段间空一行
-            最后一行：一句不超过 20 字的收尾，可以是一个提醒或一个愿望
-            不要输出 Markdown 列表、不要 emoji、不要分点。
-        """.trimIndent()
-    }
+        这次要写一份 600~800 字的用车回望，不是摘要。判断标准只有一条：
+        读完能不能想起具体是哪几天、为什么那几天特别。
+
+        硬性要求：
+        1. **每个段落至少挂一个具体日期和具体数字**，不许只写"这段时间跑了多少"。
+           逐日数据里哪些天有里程、哪些天是 0，都要用上。
+        2. 必须写到下面这些里至少四件事，各自有独立的一段：
+           - 跑得最多的那一天（具体日期、多少公里、当天是否充过电）
+           - 最长的一段没动车的日子（从哪天到哪天、几天、之后第一次出门是什么量级）
+           - 出行时段习惯（结合时段分布，说清是早起型还是夜间型）
+           - 充电节奏（几次、跟里程的关系；没有充电记录就如实说本地还没攒到）
+           - 前后半段的变化（前段与后段里程对比，是越跑越多还是回归日常）
+           - 工作日与周末的差别
+        3. 允许推测动机，但必须明确是推测，并且推测要挂在数据上，例如
+           "10 月 4 日那 276 公里，看着不像通勤"。不许编造天气、地名、路况、同行的人。
+        4. 不许写"请注意用车安全""继续保持良好的驾驶习惯""让每一次出行都更美好"这类空话。
+           出现一句就算不合格。
+        5. 电耗是"行驶电耗"（只含行驶用电，不含空调与待机），不要写成"综合电耗"，
+           也不要拿它跟别的口径比较。
+
+        输出格式（严格遵守，不要 Markdown，不要 emoji，不要分点符号）：
+        第一行：标题，12 字以内，不加书名号
+        空一行
+        正文 5 段，每段 100~140 字，段间空一行。段落职责依次是：
+          ① 这段时间的整体形状（用两三个数字定性，不要罗列全部指标）
+          ② 跑得最多的那一天，写具体
+          ③ 没动车的那段日子，写具体
+          ④ 出行时段与充电节奏里的习惯
+          ⑤ 前后半段的变化，或者与上一周期的对比（没有对比数据就写变化）
+        空一行
+        最后一行：一句不超过 25 字的收尾，可以是一个观察或一个愿望，不要口号
+    """.trimIndent()
 
     private fun buildPayload(s: ReportStats.Stats): JSONObject {
         val payload = JSONObject()
@@ -179,6 +190,16 @@ object ReportWriter {
             .put("充电次数", s.chargeCount)
             .put("单日最高里程_km", s.longestDayKm)
             .put("单日最高里程日期", s.longestDayDate)
+            .put("工作日里程_km", s.weekdayKm)
+            .put("周末里程_km", s.weekendKm)
+            .put("里程最多的星期", s.busiestWeekday)
+            .put("最长连续用车_天", s.driveStreak)
+            .put("那段连续用车起始日", s.driveStreakStart)
+            .put("最长连续没动车_天", s.idleStreak)
+            .put("那段闲置起始日", s.idleStreakStart)
+            .put("前半段里程_km", s.firstHalfKm)
+            .put("后半段里程_km", s.secondHalfKm)
+
         if (s.busiestStartHour >= 0) payload.put("通常几点出门", "${s.busiestStartHour} 点前后")
         if (s.busiestEndHour >= 0) payload.put("通常几点收车", "${s.busiestEndHour} 点前后")
 
@@ -187,11 +208,30 @@ object ReportWriter {
         }
         s.prevChargeCount?.let { payload.put("上一周期充电次数", it) }
 
+        // 出行时段分布：模型要靠它判断"早起型还是夜间型"
+        payload.put("首次出行时段分布", JSONArray().apply {
+            s.hourBuckets.forEach { (label, n) -> put(JSONObject().put(label, n)) }
+        })
+
         payload.put("里程最高的几天", JSONArray().apply {
             s.topDays.forEach { (day, km, charges) ->
                 put(JSONObject().put("日期", day).put("里程_km", km).put("当天充电次数", charges))
             }
         })
+
+        // 按周聚合：年报时用它讲"哪几周最猛"
+        if (s.weekly.isNotEmpty()) {
+            payload.put("按周汇总", JSONArray().apply {
+                s.weekly.forEach { (start, km, charges) ->
+                    put(JSONObject().put("周起始", start).put("里程_km", km).put("充电次数", charges))
+                }
+            })
+        }
+
+        // 逐日里程原样给出：模型自己找规律比我们替它摘要更靠谱。
+        // 用 "日期:里程" 的紧凑字符串，366 天也只占很小一段。
+        payload.put("逐日里程", s.dailyKm.joinToString(",") { "${it.first}:${it.second}" })
+
         return payload
     }
 }
