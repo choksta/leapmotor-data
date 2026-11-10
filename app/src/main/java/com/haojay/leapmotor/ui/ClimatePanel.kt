@@ -21,6 +21,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,28 +54,42 @@ fun ClimatePanel(
     pendingOn: Boolean? = null,
     onSend: (Int, Map<String, Any?>) -> Unit,
 ) {
-    val temp = snap?.d("climate_temp_left")?.toInt()?.coerceIn(16, 32) ?: 24
+    // 温度保留小数：车端设定值可能是 24.0/24.5，之前 toInt() 会把它悄悄改掉
+    val temp = (snap?.d("climate_temp_left")?.coerceIn(16.0, 32.0)) ?: 24.0
     val fan = snap?.d("ac_fan_level")?.toInt()?.coerceIn(1, 7) ?: 3
     val modeCode = snap?.i("climate_mode")
     val acOn = pendingOn ?: (snap?.i("climate_on") == 1)
     val locked = busy != null
 
-    /** 组装空调指令；温度/风量都带当前值，避免只发操作项被车端忽略。 */
-    fun sendAc(operate: String, t: Int = temp, f: Int = fan, mode: String? = null) {
-        val m = mode ?: when (modeCode) {
-            1 -> "cold"
-            3 -> "hot"
-            4 -> "wind"
-            else -> "wind"
-        }
+    /** 内循环开关。车况里没有对应信号，只能由用户显式选择，默认外循环。 */
+    var innerCircle by remember { mutableStateOf(false) }
+
+    /**
+     * 组装空调指令。
+     *
+     * ⚠️ 这里踩过一个坑：`climate_mode` 在空调关闭时是 **0**，早期实现把 0 和"读不到"
+     * 都兜底成了 `wind`（换气），于是「按一下风速 +」等于「开启换气模式」——
+     * 用户看到的是空调切到通风，而不是加一档风。
+     *
+     * 现在：模式只由车端真实值决定，1/3/4 之外一律发 `nohotcold`（普通模式），
+     * `wind` 只留给用户主动点「换气」。
+     */
+    fun sendAc(
+        operate: String,
+        t: Double = temp,
+        f: Int = fan,
+        mode: String? = null,
+        circle: String? = null,
+    ) {
+        val m = mode ?: resolveAcMode(modeCode)
         onSend(
             170,
             mapOf(
-                "circle" to "out",
+                "circle" to (circle ?: if (innerCircle) "in" else "out"),
                 "mode" to m,
                 "operate" to operate,
                 "position" to "all",
-                "temperature" to t.toString(),
+                "temperature" to formatTemp(t),
                 "windlevel" to f,
                 "wshld" to if (operate == "off") "1" else "0",
             )
@@ -107,14 +125,14 @@ fun ClimatePanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("温度", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.weight(1f))
-                StepBtn("−", !locked) { sendAc("manual", t = (temp - 1).coerceAtLeast(16)) }
+                StepBtn("−", !locked) { sendAc("manual", t = (temp - 0.5).coerceAtLeast(16.0)) }
                 Text(
-                    "$temp°C",
+                    "${formatTemp(temp)}°C",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(horizontal = 14.dp)
                 )
-                StepBtn("+", !locked) { sendAc("manual", t = (temp + 1).coerceAtMost(32)) }
+                StepBtn("+", !locked) { sendAc("manual", t = (temp + 0.5).coerceAtMost(32.0)) }
             }
             Spacer(Modifier.height(12.dp))
 
@@ -130,6 +148,28 @@ fun ClimatePanel(
                     modifier = Modifier.padding(horizontal = 14.dp)
                 )
                 StepBtn("+", !locked && fan < 7) { sendAc("manual", f = (fan + 1).coerceAtMost(7)) }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            // 循环：车况里没有对应信号，只能显式选择。
+            // 之前这个值写死在指令里（永远发 out），于是"调风速"会顺带把内循环切成外循环。
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("循环", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.weight(1f))
+                listOf(false to "外循环", true to "内循环").forEach { (inner, label) ->
+                    androidx.compose.material3.FilterChip(
+                        selected = innerCircle == inner,
+                        onClick = {
+                            if (innerCircle != inner) {
+                                innerCircle = inner
+                                sendAc("manual", circle = if (inner) "in" else "out")
+                            }
+                        },
+                        enabled = !locked,
+                        label = { Text(label, fontSize = 13.sp, maxLines = 1, softWrap = false) }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
             }
             Spacer(Modifier.height(14.dp))
 
@@ -386,3 +426,24 @@ private fun SeatRow(
         )
     }
 }
+
+/**
+ * 车端 mode 编码 → 指令里的 mode 字符串。
+ *
+ * 0（空调关闭）与"读不到"都必须落到 `nohotcold`（普通模式）：
+ * 早期把这两种情况兜底成 `wind`（换气），导致按一下风速加档就变成开启通风。
+ * 抽成纯函数是为了能被单元测试盯住。
+ */
+internal fun resolveAcMode(code: Int?): String = when (code) {
+    1 -> "cold"
+    3 -> "hot"
+    4 -> "wind"
+    else -> "nohotcold"
+}
+
+/**
+ * 温度格式化：整数值不带小数（24），半度保留一位（24.5）。
+ * 车端 temperature 字段是字符串，之前一律 toInt() 会把用户设的 24.5 改成 24。
+ */
+private fun formatTemp(t: Double): String =
+    if (t % 1.0 == 0.0) t.toInt().toString() else String.format(java.util.Locale.US, "%.1f", t)

@@ -12,6 +12,9 @@ class Repo(private val ctx: Context) {
     companion object {
         /** 信号盘点只做一次，避免每次轮询刷日志。 */
         private var audited = false
+
+        /** 空调信号同样只打一次。 */
+        private var climateAudited = false
     }
 
     fun session(): LpSession? = SessionStore.load(ctx)
@@ -57,6 +60,15 @@ class Repo(private val ctx: Context) {
             unknown.forEach { k ->
                 android.util.Log.i("SignalAudit", "  raw $k = " + sm.optDouble(k, Double.NaN))
             }
+        }
+        // 只读诊断：空调相关信号的当前取值，便于核对「改风速是否动了模式」
+        if (!climateAudited) {
+            climateAudited = true
+            android.util.Log.i(
+                "ClimateAudit",
+                "climate_on=" + m["climate_on"] + " mode=" + m["climate_mode"] +
+                    " fan=" + m["ac_fan_level"] + " tempLeft=" + m["climate_temp_left"]
+            )
         }
         return CarSnapshot(m, st, data.optLong("collectTime"))
     }
